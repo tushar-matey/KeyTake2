@@ -2,15 +2,19 @@
   "name": "@keytake/lambda",
   "version": "1.0.0",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/handler.ts --bundle --platform=node --target=node20 --outfile=dist/index.js",
+    "package": "npm run build && cd dist && zip -r function.zip index.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-agent": "^3.523.0",
     "@aws-sdk/client-s3": "^3.523.0",
-    "zod": "^3.22.4"
+    "mongodb": "^6.3.0",
+    "zod": "^3.22.4",
+    "@keytake/shared": "*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.134"
+    "@types/aws-lambda": "^8.10.134",
+    "esbuild": "^0.20.0"
   }
 }

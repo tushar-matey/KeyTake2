@@ -3,9 +3,9 @@ import { validateEnv } from './env';
 
 describe('validateEnv', () => {
   const originalEnv = process.env;
-  const mockExit = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
+  const mockExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number | string | null | undefined) => {
     throw new Error(`Process.exit: ${code}`);
-  });
+  }) as any);
   const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
   beforeEach(() => {

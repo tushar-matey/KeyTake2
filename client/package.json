@@ -10,6 +10,8 @@
     "@hookform/resolvers": "^3.3.4",
     "@keytake/shared": "*",
     "@tanstack/react-query": "^5.24.1",
+    "amazon-cognito-identity-js": "^6.3.20",
+    "lucide-react": "^1.52.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.50.1",
@@ -17,6 +19,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/node": "^20.19.43",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",

@@ -9,9 +9,9 @@
 | Phase | Title | Status | Assignee | Notes |
 |---|---|---|---|---|
 | 1 | Monorepo Scaffold | Done | AI | Completed 2026-10-06 |
-| 2 | Cognito Auth E2E | Not started | — | Depends on Phase 1 |
-| 3 | Audio Meetings Module | Not started | — | Depends on Phase 2 |
-| 4 | Knowledge Base & Audio Ingestion | Not started | — | Depends on Phase 3; needs strong-model review |
+| 2 | Cognito Auth E2E | Done | AI | Completed 2026-10-06 |
+| 3 | Audio Meetings Module | Done | AI | Completed 2026-10-06 |
+| 4 | Knowledge Base & Audio Ingestion | Done | AI | Completed 2026-10-06 |
 | 5 | Summary Service | Not started | — | Depends on Phase 4 |
 | 6 | Strands Agent & Chat | Not started | — | Depends on Phase 5; needs strong-model review |
 | 7 | Frontend Polish | Not started | — | Depends on Phase 6 |
@@ -63,6 +63,6 @@ When you finish a phase:
 3. Move any resolved Open Questions to the Decisions table with the resolution.
 4. Add any new issues to Known Issues.
 5. List the AWS_SETUP.md sections the user should complete now.
-
+   - For Phase 2: Section 4 (Cognito): User Pool, App Client, email verification.
 When you start a phase:
 1. Change the phase status to `In progress`.

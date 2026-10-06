@@ -18,22 +18,14 @@ const serverEnvSchema = z.object({
   BEDROCK_KB_ID: z.string().optional(),
   BEDROCK_DS_A_ID: z.string().optional(),
   BEDROCK_DS_B_ID: z.string().optional(),
-  BDA_PROJECT_ARN: z.string().optional(),
   BEDROCK_MODEL_ID: z.string().default('anthropic.claude-sonnet-4-20250514-v1:0'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
-export let env: ServerEnv;
+export const env = serverEnvSchema.parse(process.env);
 
-export function validateEnv(): ServerEnv {
-  const parsed = serverEnvSchema.safeParse(process.env);
-  
-  if (!parsed.success) {
-    console.error('Invalid environment variables:', parsed.error.format());
-    process.exit(1);
-  }
-
-  env = parsed.data;
+export function validateEnv() {
+  // Just here for backward compatibility if called
   return env;
 }

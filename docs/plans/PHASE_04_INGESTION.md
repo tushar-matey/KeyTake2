@@ -20,7 +20,6 @@ Set up the Bedrock Knowledge Base with data source A (BDA parser for audio/PDF),
 |---|---|---|
 | `BEDROCK_KB_ID` | server + lambda | KB console |
 | `BEDROCK_DS_A_ID` | lambda | KB data source console |
-| `BDA_PROJECT_ARN` | lambda | BDA console |
 | `S3_RAW_BUCKET` | lambda | S3 console |
 | `S3_DERIVED_BUCKET` | lambda | S3 console |
 | `AWS_REGION` | lambda | Your region |

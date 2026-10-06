@@ -11,14 +11,13 @@ This is the definitive guide for setting up the AWS infrastructure for the keyta
 6. [PART C. Storage](#part-c-storage)
 7. [PART D. Cognito](#part-d-cognito)
 8. [PART E. S3 Vectors](#part-e-s3-vectors)
-9. [PART F. Bedrock Data Automation](#part-f-bedrock-data-automation)
-10. [PART G. Knowledge Base](#part-g-knowledge-base)
-11. [PART H. IAM for the application](#part-h-iam-for-the-application)
-12. [PART I. Ingestion Lambda](#part-i-ingestion-lambda)
-13. [PART J. Ingestion Status Updates](#part-j-ingestion-status-updates)
-14. [PART K. Cost Protection and Observability](#part-k-cost-protection-and-observability)
-15. [PART L. Deployment](#part-l-deployment)
-16. [PART M. Verification, Troubleshooting, Teardown](#part-m-verification-troubleshooting-teardown)
+9. [PART F. Knowledge Base](#part-f-knowledge-base)
+10. [PART G. IAM for the application](#part-g-iam-for-the-application)
+11. [PART H. Ingestion Lambda](#part-h-ingestion-lambda)
+12. [PART I. Ingestion Status Updates](#part-i-ingestion-status-updates)
+13. [PART J. Cost Protection and Observability](#part-j-cost-protection-and-observability)
+14. [PART K. Deployment](#part-k-deployment)
+15. [PART L. Verification, Troubleshooting, Teardown](#part-l-verification-troubleshooting-teardown)
 
 ---
 
@@ -64,7 +63,6 @@ This is the definitive guide for setting up the AWS infrastructure for the keyta
 | `BEDROCK_KB_ID` | Server, Lambda | Render, Lambda | Bedrock > Knowledge bases > ID |
 | `BEDROCK_DS_A_ID` | Lambda | Lambda | Bedrock > Knowledge bases > Data source A ID |
 | `BEDROCK_DS_B_ID` | Lambda | Lambda | Bedrock > Knowledge bases > Data source B ID |
-| `BDA_PROJECT_ARN` | Lambda | Lambda | Bedrock > Data Automation > Project ARN |
 | `MONGODB_URI` | Server, Lambda | Render, Lambda | MongoDB Atlas |
 
 ---
@@ -174,19 +172,7 @@ S3 Vectors requires a specific vector bucket and index.
 
 ---
 
-## PART F. Bedrock Data Automation
-*Phase 4 | Required for local dev | 10 mins*
-
-1. Go to **Bedrock** > **Data Automation** (left menu under Builder tools) > **Projects**.
-2. Click **Create project**. Name it `keytake-bda-project`.
-3. Under Data Extraction, enable **Speaker Diarization**.
-4. Set Output destination to your derived bucket: `s3://keytake-derived-output-9943/bda-output/`.
-5. Click Create. Note the **Project ARN**.
-6. **Manual Test**: Use the "Test" feature in the BDA console. Upload a small MP3. Check that the output contains speaker labels and timestamps.
-
----
-
-## PART G. Knowledge Base
+## PART F. Knowledge Base
 *Phase 4 (DS A), Phase 8 (DS B) | Required for local dev | 15 mins*
 
 1. Go to **Bedrock** > **Knowledge bases** > **Create knowledge base**.
@@ -196,7 +182,7 @@ S3 Vectors requires a specific vector bucket and index.
 3. **Data source (Data Source A - Audio/PDFs)**:
    - Name: `ds-a-audio-pdf`.
    - Data source location: Choose S3, browse to your Raw bucket, and specify the prefix: `s3://RAW_BUCKET/data-source-a/`.
-   - Advanced parsing: Select **Bedrock Data Automation (BDA)**. Provide the BDA Project ARN from Part F.
+   - Advanced parsing: Select **Bedrock Data Automation (BDA)** directly in the console. Set the Output destination to your derived bucket. Enable Speaker Diarization if prompted.
    - Chunking strategy: **Hierarchical** or **Default**.
 4. **Embeddings model & Vector store**:
    - Select **Titan Text Embeddings V2**.
@@ -213,7 +199,7 @@ S3 Vectors requires a specific vector bucket and index.
 
 ---
 
-## PART H. IAM for the application
+## PART G. IAM for the application
 *Phase 4 | Required for local dev & deploy | 15 mins*
 
 ### H1. Lambda Execution Role
@@ -291,7 +277,7 @@ Render needs an IAM user to act on its behalf.
 
 ---
 
-## PART I. Ingestion Lambda
+## PART H. Ingestion Lambda
 *Phase 4 | Required for local dev | 15 mins*
 
 1. Build the code locally: `npm run build` in the `lambda/` workspace. Zip the `dist/` and `node_modules/` folders into `function.zip`.
@@ -321,7 +307,7 @@ S3 notifications must be strictly scoped to prevent loops.
 
 ---
 
-## PART J. Ingestion Status Updates
+## PART I. Ingestion Status Updates
 *Phase 4 | Required for local dev | 5 mins*
 
 Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state-change events for targeted ingestions easily. 
@@ -333,7 +319,7 @@ Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state
 
 ---
 
-## PART K. Cost Protection and Observability
+## PART J. Cost Protection and Observability
 *Phase 1 & 9 | Required for deploy | 10 mins*
 
 1. **CloudWatch Alarms**: Go to **CloudWatch** > **Alarms** > **Create alarm**.
@@ -356,7 +342,7 @@ Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state
 
 ---
 
-## PART L. Deployment
+## PART K. Deployment
 *Phase 9 | Required for deploy | 10 mins*
 
 ### L1. Render (Server)
@@ -378,7 +364,7 @@ Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state
 
 ---
 
-## PART M. Verification, Troubleshooting, Teardown
+## PART L. Verification, Troubleshooting, Teardown
 
 ### M1. End-to-End Test
 1. Sign up on the deployed Vercel app. Confirm email.
@@ -401,9 +387,8 @@ Perform in this EXACT order to avoid dependency errors:
 2. Empty buckets (Raw and Derived).
 3. Delete Knowledge Base and Data Sources.
 4. Delete Vector Index, then Vector Bucket.
-5. Delete BDA Project.
-6. Delete Lambda function.
-7. Delete IAM Users, Roles, Policies.
-8. Delete Cognito User Pool.
+5. Delete Lambda function.
+6. Delete IAM Users, Roles, Policies.
+7. Delete Cognito User Pool.
 9. Delete Buckets.
 10. Check Cost Explorer after 24h and 7 days.

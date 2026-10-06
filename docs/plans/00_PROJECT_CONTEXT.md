@@ -416,7 +416,6 @@ When implementing, use these MCP servers for verification:
 - AWS region
 - Knowledge Base ID
 - Data Source IDs (A and B)
-- BDA Project ARN
 - S3 bucket names
 - Cognito User Pool ID and Client ID
 
