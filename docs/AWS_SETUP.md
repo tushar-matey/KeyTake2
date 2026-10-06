@@ -1,37 +1,131 @@
-# AWS Setup Guide — KeyTake
+# AWS Setup Guide — keytake
 
-This document is the manual guide for setting up the AWS infrastructure required for the KeyTake project. Because this project avoids heavy IaC tools to save time and complexity, you will configure these services via the AWS Management Console.
+This is the definitive guide for setting up the AWS infrastructure for the keytake project. Follow this guide step-by-step. Do not skip sections.
 
-> **IMPORTANT:** Follow this guide step-by-step. Do not skip sections, especially the Cost Protection and IAM isolation steps.
+## Table of Contents
+1. [Prerequisites](#prerequisites)
+2. [Naming Conventions & Placeholders](#naming-conventions--placeholders)
+3. [Master Environment Variables](#master-environment-variables)
+4. [PART A. Root account tasks (do once, as ROOT user)](#part-a-root-account-tasks)
+5. [PART B. Account safety and region (as IAM admin user)](#part-b-account-safety-and-region)
+6. [PART C. Storage](#part-c-storage)
+7. [PART D. Cognito](#part-d-cognito)
+8. [PART E. S3 Vectors](#part-e-s3-vectors)
+9. [PART F. Bedrock Data Automation](#part-f-bedrock-data-automation)
+10. [PART G. Knowledge Base](#part-g-knowledge-base)
+11. [PART H. IAM for the application](#part-h-iam-for-the-application)
+12. [PART I. Ingestion Lambda](#part-i-ingestion-lambda)
+13. [PART J. Ingestion Status Updates](#part-j-ingestion-status-updates)
+14. [PART K. Cost Protection and Observability](#part-k-cost-protection-and-observability)
+15. [PART L. Deployment](#part-l-deployment)
+16. [PART M. Verification, Troubleshooting, Teardown](#part-m-verification-troubleshooting-teardown)
 
 ---
 
-## 1. Initial Setup and Region
+## Prerequisites
+- An AWS account with a valid payment method.
+- A mailbox for AWS billing and budget notifications.
+- Node.js installed locally.
+- A Vercel account for frontend deployment.
+- A Render account for backend deployment.
+- A MongoDB Atlas database.
 
-1. Sign in to the AWS Management Console.
-2. Choose **one region** and stick to it for all services (e.g., `us-east-1` or `us-west-2`).
-3. Note your Region code (e.g., `us-east-1`). This will be your `AWS_REGION` env var.
+## Naming Conventions & Placeholders
+| Type | Naming Convention |
+|---|---|
+| Project name | `keytake` |
+| S3 Buckets | Must be globally unique. Suffix with random numbers, e.g., `keytake-raw-uploads-9943` |
+| Resource names | Prefix with `keytake-` (e.g., `keytake-client`, `keytake-ingestion-lambda`) |
 
-## 2. Bedrock Model Access
+**Placeholders table:** Replace these in JSON policies or commands when you see them.
+| Placeholder | What it is |
+|---|---|
+| `REGION` | Your chosen AWS region (e.g., `us-east-1`) |
+| `ACCOUNT_ID` | Your 12-digit AWS account ID (find it in the top-right menu) |
+| `RAW_BUCKET` | The exact name of your raw uploads bucket |
+| `DERIVED_BUCKET` | The exact name of your derived output bucket |
+| `VECTOR_BUCKET` | The exact name of your S3 Vectors bucket |
+| `VECTOR_INDEX` | The exact name of your vector index |
+| `USER_POOL_ID` | Your Cognito User Pool ID |
+| `KB_ID` | Your Knowledge Base ID |
+| `KB_ROLE_NAME` | The name of the IAM role used by your Knowledge Base |
 
-1. Go to **Amazon Bedrock**.
-2. In the left navigation pane, select **Model access**.
-3. Click **Manage model access** (or "Enable specific models").
-4. Request access to:
-   - **Anthropic Claude 3.5 Sonnet** (or the latest Sonnet model you intend to use).
-   - **Amazon Titan Text Embeddings V2**.
-5. Wait for access to be granted (usually takes a few minutes).
+## Master Environment Variables
+| Variable | Used By | File/Dashboard | Source in Console |
+|---|---|---|---|
+| `AWS_REGION` | Server, Lambda | `server/.env`, Lambda | Chosen region code (e.g., `us-east-1`) |
+| `VITE_COGNITO_USER_POOL_ID` | Client | Vercel | Cognito > User Pools > Pool ID |
+| `VITE_COGNITO_CLIENT_ID` | Client | Vercel | Cognito > User Pools > App integration > Client ID |
+| `VITE_COGNITO_REGION` | Client | Vercel | Chosen region code |
+| `COGNITO_USER_POOL_ID` | Server | Render | Same as `VITE_COGNITO_USER_POOL_ID` |
+| `COGNITO_CLIENT_ID` | Server | Render | Same as `VITE_COGNITO_CLIENT_ID` |
+| `S3_RAW_BUCKET` | Server, Lambda | Render, Lambda | S3 > Buckets > Name |
+| `S3_DERIVED_BUCKET` | Lambda | Lambda | S3 > Buckets > Name |
+| `BEDROCK_KB_ID` | Server, Lambda | Render, Lambda | Bedrock > Knowledge bases > ID |
+| `BEDROCK_DS_A_ID` | Lambda | Lambda | Bedrock > Knowledge bases > Data source A ID |
+| `BEDROCK_DS_B_ID` | Lambda | Lambda | Bedrock > Knowledge bases > Data source B ID |
+| `BDA_PROJECT_ARN` | Lambda | Lambda | Bedrock > Data Automation > Project ARN |
+| `MONGODB_URI` | Server, Lambda | Render, Lambda | MongoDB Atlas |
 
-## 3. S3 Buckets
+---
 
-We need two separate buckets.
+## PART A. Root account tasks (do once, as ROOT user)
+*Phase 1 | Required for local dev | 10 mins*
 
-### Bucket 1: Raw Uploads
-1. Go to **S3** and create a bucket (e.g., `meeting-brain-raw-uploads`).
-2. **Block Public Access**: Keep this ON.
-3. **Bucket Versioning**: Disable.
-4. **Default encryption**: Enable (SSE-S3).
-5. **CORS configuration** (Permissions tab):
+A Bedrock Knowledge Base cannot be created by the root user. Do these steps, then log out.
+
+1. **Sign in as root**: Log in using your email address and password.
+2. **Enable MFA**: Go to IAM > Users > Root user. Follow the prompts to add Multi-Factor Authentication.
+3. **Enable IAM user access to Billing**: Go to Account settings (top-right menu > Account). Scroll down to **IAM User and Role Access to Billing Information**, click Edit, and select **Activate IAM Access**, then Update.
+4. **Set Account Alias**: Go to the IAM dashboard. On the right side, under **AWS account**, click **Create** next to Account alias. Enter a memorable name (e.g., `keytake-dev-yourname`). Note the IAM user sign-in URL.
+5. **Create IAM Admin User**: 
+   - Go to IAM > User groups. Click **Create group**. Name it `AdminGroup`. Under Attach permissions policies, search for and select **AdministratorAccess**. Click Create. *(Note: For production, create a custom policy with least privilege. For solo dev, AdminAccess is acceptable).*
+   - Go to IAM > Users. Click **Create user**. Name it `keytake-admin`. Check **Provide user access to the AWS Management Console**. Choose "I want to create an IAM user" and "Autogenerated password". Click Next.
+   - Select **Add user to group** and choose `AdminGroup`. Click Next, then Create.
+   - Download the CSV containing the password. **Do not create access keys for this user.**
+6. **Sign out**: Log out of the root account.
+7. **Sign in as Admin**: Go to the IAM sign-in URL you saved. Log in as `keytake-admin`. Go to IAM > Users > `keytake-admin` > Security credentials, and enable **MFA**.
+> **IMPORTANT:** Never use the root user again. Perform all following steps as `keytake-admin`.
+
+---
+
+## PART B. Account safety and region (as IAM admin user)
+*Phase 1 | Required for local dev | 10 mins*
+
+1. **Set up Budgets**: Go to **Billing and Cost Management** > **Budgets**. Click **Create budget**. Select **Zero spend budget** (or Customize for a low monthly limit like $10). Add your email address to receive alerts at 50%, 80%, 100%, and forecasted 100%.
+2. **Choose Region**: We recommend `us-east-1` or `us-west-2` as they support Bedrock Claude models, Titan Text Embeddings V2, Bedrock Data Automation (BDA), and S3 Vectors. Change your region in the top-right corner. **Stay in this region for all steps.**
+3. **Request Model Access**:
+   - Go to **Amazon Bedrock**. In the left menu (bottom), click **Model access**.
+   - Click **Modify model access**. 
+   - Request access to **Anthropic Claude 3.5 Sonnet** (or Claude 3 Sonnet depending on region) and **Amazon Titan Text Embeddings V2**.
+   - Note: You may be prompted to submit a use-case form for Anthropic. Fill it out.
+   - Click Next and Submit. Wait 5-10 minutes until status is "Access granted".
+4. **Test in Playground**: Go to Bedrock > Playgrounds > Chat. Select Claude 3.5 Sonnet and send a test message to verify it works.
+
+---
+
+## PART C. Storage
+*Phase 4 | Required for local dev | 15 mins*
+
+We need three separate buckets: Raw uploads, Derived output (for BDA), and S3 Vectors bucket (covered in Part E). 
+
+### S3 Key Layout (Conflict Resolution)
+To prevent Data Source A (Audio/PDF) and Data Source B (DOCX/TXT) from ingesting the same files, we must separate them by prefix. S3 data sources sync an entire prefix.
+```text
+Raw bucket:
+  data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3
+  data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json
+  data-source-b/users/{userId}/meetings/{meetingId}/notes.docx
+  data-source-b/users/{userId}/meetings/{meetingId}/notes.docx.metadata.json
+```
+
+1. **Create Raw Bucket**: Go to **S3** > **Create bucket**. Name it e.g., `keytake-raw-uploads-9943`.
+   - **Block Public Access**: Keep ON (checked).
+   - **Bucket Versioning**: Disable.
+   - **Default encryption**: SSE-S3.
+   - Click Create.
+2. **Create Derived Bucket**: Go to **S3** > **Create bucket**. Name it e.g., `keytake-derived-output-9943`. Same settings as above.
+3. **Configure CORS (Raw Bucket Only)**: Go to Raw bucket > **Permissions** tab. Scroll to **Cross-origin resource sharing (CORS)** and paste:
    ```json
    [
      {
@@ -42,83 +136,114 @@ We need two separate buckets.
      }
    ]
    ```
-6. **Lifecycle Rule** (Management tab):
-   - Name: `AbortIncompleteMultipartUploads`
-   - Action: Check "Delete incomplete multipart uploads"
-   - Number of days: `1`
+4. **Configure Lifecycle Rule (Raw Bucket)**: Go to Raw bucket > **Management** tab. Click **Create lifecycle rule**. Name: `AbortIncomplete`. Check "Delete incomplete multipart uploads". Set days to `1`.
 
-### Bucket 2: Derived Output
-1. Create another bucket (e.g., `meeting-brain-derived-output`).
-2. **Block Public Access**: Keep this ON.
-3. No CORS or Lifecycle rules required for this bucket.
+---
 
-## 4. Amazon Cognito
+## PART D. Cognito
+*Phase 2 | Required for local dev | 10 mins*
 
-1. Go to **Cognito** and click **Create user pool**.
-2. **Step 1:** Sign-in options: Select **Email**.
-3. **Step 2:** Security: Choose Cognito defaults. Keep MFA optional or disabled based on preference. Enable self-service account recovery (Email only).
-4. **Step 3:** Sign-up experience: Keep default attributes.
-5. **Step 4:** Message delivery: Choose "Send email with Cognito" (for development/low volume).
-6. **Step 5:** App integration:
-   - App type: **Public client** (Single Page App).
-   - App client name: `meeting-brain-client`.
-   - **Client secret**: Do NOT generate a client secret.
-7. **Step 6:** Review and Create.
-8. Note the **User Pool ID** and **App Client ID**.
+1. Go to **Cognito** > **User pools** > **Create user pool**.
+2. **Step 1: Sign-in options**: Select **Email**. Click Next.
+3. **Step 2: Security**: Password policy defaults. Multi-factor authentication: **No MFA** (or optional). Account recovery: **Email only**. Click Next.
+4. **Step 3: Sign-up**: Keep default required attributes (`email`). Click Next.
+5. **Step 4: Message delivery**: Choose **Send email with Cognito** (for dev/free tier). Click Next.
+6. **Step 5: App integration**: 
+   - User pool name: `keytake-pool`.
+   - App client type: **Public client**.
+   - App client name: `keytake-client`.
+   - Client secret: **Don't generate a client secret**.
+   - Allowed callback URLs: `http://localhost:5173`
+   - Allowed sign-out URLs: `http://localhost:5173`
+   - Authentication flows: Check `ALLOW_USER_SRP_AUTH` and `ALLOW_REFRESH_TOKEN_AUTH`.
+7. **Step 6: Review & Create**.
+8. Copy the **User Pool ID** and **Client ID** into your `.env` files.
 
-## 5. Amazon S3 Vectors (for Knowledge Base)
+---
 
-Instead of using OpenSearch, we use S3 Vectors to minimize costs.
-_Note: Configure this during the Knowledge Base creation step (Section 7), where you can select "Amazon S3 Vectors" as the vector store._
+## PART E. S3 Vectors
+*Phase 4 | Required for local dev | 10 mins*
 
-## 6. Bedrock Data Automation (BDA)
+S3 Vectors requires a specific vector bucket and index.
+1. Go to **S3** > **Vector buckets** (in the left menu). Click **Create vector bucket**. Name it `keytake-vector-bucket-9943`. Click Create.
+2. Go to the vector bucket you created. Click **Create vector index**.
+   - Index name: `keytake-index`
+   - Dimensions: `1024` (Must match Titan Text Embeddings V2, usually 512 or 1024 depending on your code. We'll use 1024).
+   - Distance metric: `CosineSimilarity` (or `Euclidean` / `InnerProduct`). Cosine is recommended.
+3. Note the **Vector Bucket Name** and **Index ARN**.
 
-1. Go to **Amazon Bedrock**.
-2. In the left navigation, under **Data Automation**, select **Projects**.
-3. Create a new BDA project.
-4. Name: `MeetingBrainAudioTranscription`.
-5. Under configuration, ensure **Speaker Diarization** is **ENABLED**.
-6. Set the output destination to the **Derived Output Bucket** (`s3://meeting-brain-derived-output/bda-output/`).
-7. Note the **Project ARN**.
+---
 
-## 7. Bedrock Knowledge Base
+## PART F. Bedrock Data Automation
+*Phase 4 | Required for local dev | 10 mins*
 
-1. Go to **Amazon Bedrock** > **Knowledge bases** > **Create knowledge base**.
-2. Name: `MeetingBrainKB`.
-3. **IAM Role**: Create and use a new service role.
-4. **Data Source 1 (Data Source A - Audio/PDFs):**
-   - Name: `DataSourceA_BDA`.
-   - Source: S3 URI pointing to `s3://meeting-brain-raw-uploads/` (or a specific prefix if preferred).
-   - Chunking strategy: Default or Hierarchical (choose based on preference, Default is fine).
-   - Parsing model: Select **Bedrock Data Automation (BDA)** and provide your BDA Project ARN.
-   - Note: We will handle the inclusion/exclusion filters later via the API or console to ensure this only picks up Audio and PDF.
-5. **Data Source 2 (Data Source B - Documents):**
-   - Create another data source for the same KB.
-   - Name: `DataSourceB_Docs`.
-   - Source: S3 URI pointing to `s3://meeting-brain-raw-uploads/`.
-   - Parsing model: Default.
-6. **Embeddings Model**: Select **Titan Text Embeddings V2**.
-7. **Vector Store**: Select **Amazon S3**. Choose a prefix in your derived bucket for vector storage (e.g., `s3://meeting-brain-derived-output/vectors/`).
-   - _Note on Metadata:_ Ensure Bedrock's text and metadata fields are configured as non-filterable if possible, as S3 Vectors has limitations on metadata size.
-8. Complete creation. Note the **Knowledge Base ID**, **Data Source A ID**, and **Data Source B ID**.
+1. Go to **Bedrock** > **Data Automation** (left menu under Builder tools) > **Projects**.
+2. Click **Create project**. Name it `keytake-bda-project`.
+3. Under Data Extraction, enable **Speaker Diarization**.
+4. Set Output destination to your derived bucket: `s3://keytake-derived-output-9943/bda-output/`.
+5. Click Create. Note the **Project ARN**.
+6. **Manual Test**: Use the "Test" feature in the BDA console. Upload a small MP3. Check that the output contains speaker labels and timestamps.
 
-## 8. IAM Users and Roles
+---
 
-### Lambda Execution Role
+## PART G. Knowledge Base
+*Phase 4 (DS A), Phase 8 (DS B) | Required for local dev | 15 mins*
+
+1. Go to **Bedrock** > **Knowledge bases** > **Create knowledge base**.
+2. **Knowledge base details**:
+   - Name: `keytake-kb`.
+   - IAM role: **Create and use a new service role** (e.g., `AmazonBedrockExecutionRoleForKnowledgeBase_keytake`).
+3. **Data source (Data Source A - Audio/PDFs)**:
+   - Name: `ds-a-audio-pdf`.
+   - Data source location: Choose S3, browse to your Raw bucket, and specify the prefix: `s3://RAW_BUCKET/data-source-a/`.
+   - Advanced parsing: Select **Bedrock Data Automation (BDA)**. Provide the BDA Project ARN from Part F.
+   - Chunking strategy: **Hierarchical** or **Default**.
+4. **Embeddings model & Vector store**:
+   - Select **Titan Text Embeddings V2**.
+   - Vector store: Choose **Choose a vector store you have created**. Select S3 Vectors, then select your `keytake-vector-bucket-9943` and `keytake-index`.
+   - Note: Ensure Bedrock's metadata maps to non-filterable keys if needed by S3 Vectors limits.
+5. Review and Create. Note the **Knowledge Base ID** and **Data Source A ID**.
+6. **Data Source B (Docs) [Phase 8]**:
+   - Go to your newly created Knowledge Base. In the Data Sources section, click **Add**.
+   - Name: `ds-b-docs`.
+   - Data source location: `s3://RAW_BUCKET/data-source-b/`.
+   - Parsing strategy: **Default parser**.
+   - Chunking strategy: **Default**.
+   - Note the **Data Source B ID**.
+
+---
+
+## PART H. IAM for the application
+*Phase 4 | Required for local dev & deploy | 15 mins*
+
+### H1. Lambda Execution Role
 1. Go to **IAM** > **Roles** > **Create role**.
-2. Trusted entity: **AWS service** -> **Lambda**.
-3. Attach policies:
-   - `AWSLambdaBasicExecutionRole` (for CloudWatch logs).
-   - Create an inline policy allowing:
-     - `s3:GetObject` on `meeting-brain-raw-uploads` bucket.
-     - `bedrock:StartIngestionJob` on the Knowledge Base.
-4. Note the Role ARN.
+2. Trusted entity: **AWS service** -> **Lambda**. Next.
+3. Attach `AWSLambdaBasicExecutionRole`. Next. Name it `keytake-lambda-role`. Create.
+4. Go to the role, click **Add permissions** > **Create inline policy**. Switch to JSON, paste this:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": ["s3:GetObject", "s3:ListBucket"],
+         "Resource": ["arn:aws:s3:::RAW_BUCKET", "arn:aws:s3:::RAW_BUCKET/*"]
+       },
+       {
+         "Effect": "Allow",
+         "Action": ["bedrock:StartIngestionJob", "bedrock:IngestKnowledgeBaseDocuments"],
+         "Resource": "arn:aws:bedrock:REGION:ACCOUNT_ID:knowledge-base/KB_ID"
+       }
+     ]
+   }
+   ```
+5. Name it `LambdaIngestionPolicy`. Save.
 
-### Render / Server IAM User
-1. Go to **IAM** > **Users** > **Create user**.
-2. Name: `meeting-brain-server`.
-3. **Do not provide console access.**
-4. Create an inline policy with least privilege:
+### H2. Render IAM User (keytake-server)
+Render needs an IAM user to act on its behalf.
+1. Go to **IAM** > **Users** > **Create user**. Name it `keytake-server`. **Do NOT check Provide user access to the AWS Management Console.** Next, Create user.
+2. Go to the user, **Add permissions** > **Create inline policy**. JSON:
    ```json
    {
      "Version": "2012-10-17",
@@ -127,14 +252,17 @@ _Note: Configure this during the Knowledge Base creation step (Section 7), where
          "Effect": "Allow",
          "Action": [
            "s3:PutObject",
+           "s3:GetObject",
            "s3:DeleteObject",
-           "s3:ListBucket"
+           "s3:ListBucket",
+           "s3:AbortMultipartUpload",
+           "s3:ListMultipartUploadParts"
          ],
          "Resource": [
-           "arn:aws:s3:::meeting-brain-raw-uploads",
-           "arn:aws:s3:::meeting-brain-raw-uploads/*",
-           "arn:aws:s3:::meeting-brain-derived-output",
-           "arn:aws:s3:::meeting-brain-derived-output/*"
+           "arn:aws:s3:::RAW_BUCKET",
+           "arn:aws:s3:::RAW_BUCKET/*",
+           "arn:aws:s3:::DERIVED_BUCKET",
+           "arn:aws:s3:::DERIVED_BUCKET/*"
          ]
        },
        {
@@ -142,110 +270,140 @@ _Note: Configure this during the Knowledge Base creation step (Section 7), where
          "Action": [
            "bedrock:Retrieve",
            "bedrock:InvokeModel",
-           "bedrock:Converse"
+           "bedrock:Converse",
+           "bedrock:GetIngestionJob",
+           "bedrock:StartIngestionJob"
          ],
          "Resource": "*"
        },
        {
          "Effect": "Allow",
-         "Action": [
-           "cognito-idp:AdminDeleteUser"
-         ],
+         "Action": "cognito-idp:AdminDeleteUser",
          "Resource": "arn:aws:cognito-idp:REGION:ACCOUNT_ID:userpool/USER_POOL_ID"
        }
      ]
    }
    ```
-5. Generate an **Access Key** for this user. Save the Key ID and Secret Key securely.
+   *Note: For `bedrock:*` you can scope it to specific Knowledge Base and Model ARNs for stricter security.*
+3. Name it `RenderServerPolicy`.
+4. Go to **Security credentials** tab for this user. Click **Create access key**. Select **Third-party service**. Create.
+5. **Copy the Access Key ID and Secret Access Key immediately.** Store them only in Render environment variables. Never commit them.
 
-## 9. Ingestion Lambda Deployment
+---
 
-1. Once the Lambda code is built (`npm run build` in the `lambda` folder), create a zip file containing `dist/` and `node_modules/`.
+## PART I. Ingestion Lambda
+*Phase 4 | Required for local dev | 15 mins*
+
+1. Build the code locally: `npm run build` in the `lambda/` workspace. Zip the `dist/` and `node_modules/` folders into `function.zip`.
 2. Go to **Lambda** > **Create function**.
-3. Name: `MeetingBrainIngestion`.
-4. Runtime: Node.js 20.x.
-5. Execution role: Select the Lambda Execution Role created in Section 8.
-6. **Environment Variables**:
-   - `S3_RAW_BUCKET`
-   - `BEDROCK_KB_ID`
-   - `BEDROCK_DS_A_ID`
-   - `BEDROCK_DS_B_ID`
-   - `AWS_REGION`
-   - `MONGODB_URI`
-7. **Configuration** > **General configuration**:
-   - Memory: `256 MB`
-   - Timeout: `60 seconds`
-8. **Concurrency**: Set Reserved Concurrency to `2` to prevent spikes and runaway costs.
-9. **Upload** the zip file.
+   - Name: `keytake-ingestion`.
+   - Runtime: Node.js 20.x.
+   - Execution role: Use existing role `keytake-lambda-role`.
+   - Advanced settings: **Enable VPC -> Do NOT enable** (avoid NAT gateway costs).
+3. Under **Configuration** > **Environment variables**, add:
+   - `S3_RAW_BUCKET`, `S3_DERIVED_BUCKET`, `BEDROCK_KB_ID`, `BEDROCK_DS_A_ID`, `BEDROCK_DS_B_ID`, `AWS_REGION`, `MONGODB_URI`.
+4. Under **Configuration** > **General configuration**: Memory `256 MB`, Timeout `60 seconds`.
+5. Under **Configuration** > **Concurrency**: Click Edit. Reserve `2` units.
+   > **WARNING:** AWS accounts start with low concurrency limits and require 100 unreserved units. If saving fails with an error about unreserved concurrency, request a quota increase in Service Quotas, or set it back to "Use unreserved account concurrency" but rely heavily on CloudWatch alarms and max retries=0 to prevent runaway costs.
+6. Under **Configuration** > **Asynchronous invocation**: Set **Maximum age of event** to `1 hour` and **Retry attempts** to `0`. (We do not want infinite retries on failed processing).
+7. Upload your `function.zip` via the **Code** tab.
 
-### Configure S3 Event Trigger (CRITICAL)
-1. Go to the `meeting-brain-raw-uploads` bucket > **Properties** > **Event notifications**.
-2. Create event notification:
-   - Name: `LambdaIngestAudio`
-   - Event types: `All object create events`
-   - Prefix: `users/`
-   - Suffix: `.mp3`
-   - Destination: Lambda function -> `MeetingBrainIngestion`
-3. **Repeat** step 2 for EACH supported suffix (`.wav`, `.flac`, `.m4a`, `.ogg`, `.amr`, `.pdf`, `.docx`, `.txt`, `.md`).
-   - *AWS requires separate event notification rules if you need multiple suffixes on the same prefix.*
-4. **WARNING:** NEVER add a trigger for `.metadata.json` or no suffix at all. This will cause infinite recursive loops.
+### S3 Event Triggers (CRITICAL)
+S3 notifications must be strictly scoped to prevent loops.
+1. Go to your Raw bucket > **Properties** > **Event notifications**.
+2. **Audio/PDF rules (Data Source A)**: Create separate rules for EACH suffix.
+   - Name: `Lambda-A-mp3`, Event: `All object create events`. Prefix: `data-source-a/users/`. Suffix: `.mp3`. Destination: Lambda `keytake-ingestion`.
+   - Repeat for `.wav`, `.m4a`, `.pdf`, etc.
+3. **Docs rules (Data Source B) [Phase 8]**:
+   - Name: `Lambda-B-docx`, Prefix: `data-source-b/users/`. Suffix: `.docx`. Destination: same Lambda.
+   - Repeat for `.txt`, `.md`.
+> **DANGER:** NEVER add a trigger with a `.json` or empty suffix. Sidecar metadata must NOT trigger the Lambda.
 
-## 10. EventBridge (Optional but Recommended for Status Updates)
+---
 
-If you want the backend to be notified when an ingestion job finishes instead of polling from the Lambda (which costs money):
-1. Go to **EventBridge** > **Rules** > **Create rule**.
-2. Event pattern:
-   ```json
-   {
-     "source": ["aws.bedrock"],
-     "detail-type": ["Knowledge Base Ingestion Job State Change"],
-     "detail": {
-       "knowledgeBaseId": ["YOUR_KB_ID"]
-     }
-   }
-   ```
-3. Set the target to another small Lambda function or an API Gateway webhook hitting your Express server to update the meeting status in MongoDB.
-*(For simplicity, Phase 4 might use a basic check or assume completion after a set time, but EventBridge is the robust way).*
+## PART J. Ingestion Status Updates
+*Phase 4 | Required for local dev | 5 mins*
 
-## 11. Cost Protection & Hardening
+Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state-change events for targeted ingestions easily. 
+**Safe Alternative:** The Express server checks `bedrock:GetIngestionJob` on demand when the frontend polls `GET /api/meetings/:id/status`.
+- The frontend uses `react-query` to poll every 5-10 seconds.
+- The server calls `GetIngestionJob` to check status.
+- Once status is COMPLETE, the server updates MongoDB.
+- Ensure the frontend stops polling once status is `ready` or `failed`. **No Lambda polling loops.**
 
-1. **CloudWatch Log Retention**: Go to CloudWatch > Log groups. Find the log groups for your Lambda functions and change the retention from "Never expire" to **7 days** or **14 days**.
-2. **Billing Alarms**: Go to Billing > Budgets. Set a daily or monthly budget alarm (e.g., $10/month) that emails you if costs spike.
+---
 
-## 12. Deployment
+## PART K. Cost Protection and Observability
+*Phase 1 & 9 | Required for deploy | 10 mins*
 
-### Render (Express Server)
-1. Create a new Web Service.
-2. Connect your repository.
-3. Root directory: `.` (or empty).
-4. Build Command: `npm install && npm run build:shared && npm run build -w server`
-5. Start Command: `node server/dist/server.js`
-6. Add ALL environment variables from `server/.env.example`.
-   - Use the Access Key ID and Secret Key from the Render IAM User (Section 8).
+1. **CloudWatch Alarms**: Go to **CloudWatch** > **Alarms** > **Create alarm**.
+   - Select metric: Lambda > By Function Name > `Invocations` for `keytake-ingestion`.
+   - Condition: Greater than e.g., 50 within 5 minutes.
+   - Action: Send notification to a new SNS topic (add your email).
+2. **Log Retention**: Go to **CloudWatch** > **Log groups**. Find `/aws/lambda/keytake-ingestion` and change retention from "Never expire" to **14 days**. Do this for all log groups.
+3. **Monthly Routine**:
+   - Check **Billing** > **Cost Explorer**.
+   - Check **Bedrock** usage (especially BDA).
+   - BDA Audio costs ~$0.012/min. Cap audio lengths in your server to prevent massive bills.
 
-### Vercel (React Client)
-1. Import your repository in Vercel.
-2. Framework Preset: Vite.
-3. Root Directory: `client`
-4. Build Command: `npm run build`
-5. Add environment variables:
-   - `VITE_API_URL` (URL of your Render backend)
-   - `VITE_COGNITO_USER_POOL_ID`
-   - `VITE_COGNITO_CLIENT_ID`
-   - `VITE_COGNITO_REGION`
+| Service | Free Tier | Main Cost Driver |
+|---|---|---|
+| BDA | No | Audio minutes processed |
+| Claude Sonnet | No | Tokens (Input/Output) |
+| S3 Vectors | No | Storage (GB/month) and Queries |
+| Lambda | 1M reqs/mo | Compute duration |
+| Cognito | 10K MAU | Active users |
 
-## 13. End-to-End Verification
+---
 
-1. Go to your Vercel app URL.
-2. Sign up for a new account. Check your email for the confirmation code.
-3. Sign in.
-4. Upload a small `.mp3` file.
-5. Verify in the AWS console:
-   - The `.mp3` is in the raw bucket.
-   - The `.metadata.json` sidecar is next to it.
-   - The Lambda fired exactly once (check CloudWatch).
-   - The Knowledge Base ingestion job started.
-6. Wait for the meeting to show as `ready` in the UI.
-7. Click the meeting, view the summary and transcript.
-8. Ask a question in the chat and verify the response includes citations.
-9. Try deleting the meeting and verifying the files are removed from S3.
+## PART L. Deployment
+*Phase 9 | Required for deploy | 10 mins*
+
+### L1. Render (Server)
+1. Dashboard > New > Web Service.
+2. Connect Repo. Root dir: `.` (or empty).
+3. Build Command: `npm install && npm run build:shared && npm run build -w server`
+4. Start Command: `node server/dist/server.js`
+5. Add all ENV vars from `server/.env.example`, plus `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for the `keytake-server` IAM user.
+6. Note: Free tier sleeps after 15 mins.
+
+### L2. Vercel (Client)
+1. Import repo. Framework preset: Vite. Root dir: `client`.
+2. Build Command: `npm run build`.
+3. Add ENVs: `VITE_API_URL` (Render URL), plus Cognito vars.
+
+### L3. Update CORS
+1. Once deployed, add your Vercel URL to the S3 Raw Bucket CORS configuration.
+2. Ensure your Render server `cors` middleware allows the Vercel URL.
+
+---
+
+## PART M. Verification, Troubleshooting, Teardown
+
+### M1. End-to-End Test
+1. Sign up on the deployed Vercel app. Confirm email.
+2. Upload a meeting audio file.
+3. Check CloudWatch: verify the Lambda ran exactly once.
+4. Wait for it to become `ready`. View transcript and summary.
+5. Chat with the agent, verify citations work.
+
+### M2. Troubleshooting
+| Issue | Cause | Fix |
+|---|---|---|
+| AccessDenied on S3 upload | Render IAM user missing permissions or wrong CORS | Check `RenderServerPolicy` and S3 CORS |
+| Lambda infinite loop | Triggering on `.metadata.json` | Immediately disable S3 trigger. Fix suffix filters. |
+| Metadata size error in KB | S3 Vectors limits exceeded | Ensure Bedrock metadata is non-filterable in Vector index |
+| Token verification fail | Wrong Cognito Client ID/Region | Verify ENVs in Render |
+
+### M3. Teardown (To Stop Billing)
+Perform in this EXACT order to avoid dependency errors:
+1. Delete S3 event triggers on Raw bucket.
+2. Empty buckets (Raw and Derived).
+3. Delete Knowledge Base and Data Sources.
+4. Delete Vector Index, then Vector Bucket.
+5. Delete BDA Project.
+6. Delete Lambda function.
+7. Delete IAM Users, Roles, Policies.
+8. Delete Cognito User Pool.
+9. Delete Buckets.
+10. Check Cost Explorer after 24h and 7 days.

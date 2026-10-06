@@ -103,7 +103,7 @@ meetingSchema.index({ userId: 1, _id: 1 });
 ### Sidecar Writing (Server-Side Only)
 ```typescript
 // After upload completes, server writes:
-// s3://raw-bucket/users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json
+// s3://raw-bucket/data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json
 const sidecar = {
   metadataAttributes: {
     userId: req.user.userId,
@@ -171,8 +171,8 @@ const MAX_UPLOADS_PER_DAY = 5; // configurable
 
 ## Manual Verification
 1. Create a meeting, upload an audio file, see progress bar.
-2. Check S3: file exists at `users/{userId}/meetings/{meetingId}/audio.mp3`.
-3. Check S3: sidecar exists at `users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json`.
+2. Check S3: file exists at `data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3`.
+3. Check S3: sidecar exists at `data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json`.
 4. Try uploading a `.exe` file → rejected.
 5. Try uploading the same audio again → duplicate rejected.
 6. Sign in as different user → cannot see first user's meetings.

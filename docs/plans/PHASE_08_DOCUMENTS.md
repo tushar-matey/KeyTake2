@@ -55,11 +55,13 @@ function getDataSourceId(ext: string): string {
 
 ### S3 Event Notification Update
 ```
-Add suffix filters for document types:
-  - .pdf   (already added in Phase 4)
-  - .docx
-  - .txt
-  - .md
+Create a new event notification rule for Data Source B:
+  Event types: s3:ObjectCreated:*
+  Prefix filter: data-source-b/users/
+  Add suffix filters for document types:
+    - .docx
+    - .txt
+    - .md
 
 STILL exclude: .metadata.json, .json
 ```
@@ -144,7 +146,7 @@ const MAX_PDF_PAGES = 20; // BDA console limit
 6. Check KB console: both data sources show ingested files.
 
 ## Common Pitfalls
-- Adding `.txt` suffix filter may match other `.txt` files in the bucket — the `users/` prefix filter prevents this.
+- Adding `.txt` suffix filter may match other `.txt` files in the bucket — the `data-source-b/users/` prefix filter prevents this.
 - DOCX MIME type is long (`application/vnd.openxmlformats-...`) — ensure exact match.
 - PDF page count validation requires reading the file — consider doing this server-side before presigning.
 - Data source B must be configured with different inclusion filters than A to avoid overlap.

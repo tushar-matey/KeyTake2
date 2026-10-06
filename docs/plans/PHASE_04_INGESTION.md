@@ -64,7 +64,7 @@ export const handler = async (event: S3Event): Promise<void> => {
     if (key.endsWith('.metadata.json')) return;
 
     // 3. Parse userId and meetingId from key
-    //    key format: users/{userId}/meetings/{meetingId}/filename.ext
+    //    key format: data-source-a/users/{userId}/meetings/{meetingId}/filename.ext
     const { userId, meetingId, fileName, ext } = parseS3Key(key);
 
     // 4. IDEMPOTENCY: Check meeting status in Mongo
@@ -92,7 +92,7 @@ export const handler = async (event: S3Event): Promise<void> => {
 ```
 S3 Event Notification on raw bucket:
   Event types: s3:ObjectCreated:*
-  Prefix filter: users/
+  Prefix filter: data-source-a/users/
   Suffix filters (one notification per suffix):
     - .mp3
     - .wav
@@ -127,17 +127,9 @@ const startIngestion = async (kbId: string, dsId: string, s3Key: string) => {
 |---|---|---|---|
 | `GET` | `/api/meetings/:id/status` | Yes | `{ status, errorMessage? }` |
 
-### EventBridge Rule (for status updates)
-```json
-{
-  "source": ["aws.bedrock"],
-  "detail-type": ["Knowledge Base Ingestion Job State Change"],
-  "detail": {
-    "knowledgeBaseId": ["YOUR_KB_ID"]
-  }
-}
-```
-This rule triggers a second Lambda (or the same one with a different handler) that updates meeting status in Mongo to `ready` or `failed`.
+### Status Updates (Server-side polling)
+The Express server checks the status using `GetIngestionJob` when the frontend polls for meeting status. Once the job is `COMPLETE`, the server updates the meeting status in Mongo to `ready` or `failed`.
+No EventBridge rules or secondary Lambdas are needed.
 
 ## Step-by-Step Implementation Order
 
@@ -160,7 +152,7 @@ This rule triggers a second Lambda (or the same one with a different handler) th
 > **Lambda and Event Loops:**
 > - The ingestion Lambda must NEVER write to a location that triggers its own S3 event.
 > - Sidecar `.metadata.json` files are written by the server in Phase 3, NOT by the Lambda.
-> - S3 event notifications scoped by prefix (`users/`) and suffix (audio/PDF extensions only).
+> - S3 event notifications scoped by prefix (`data-source-a/users/`) and suffix (audio/PDF extensions only).
 > - `.metadata.json` and the derived bucket are explicitly excluded from triggers.
 > - Raw uploads and derived output in separate buckets.
 > - Reserved concurrency: 2–5.
@@ -180,7 +172,7 @@ This rule triggers a second Lambda (or the same one with a different handler) th
 - [ ] Uploading an audio file triggers the Lambda exactly once (verify in CloudWatch).
 - [ ] Lambda updates meeting status to `processing`.
 - [ ] Ingestion job starts successfully.
-- [ ] After ingestion completes, meeting status updates to `ready` (via EventBridge or polling).
+- [ ] After ingestion completes, meeting status updates to `ready` (via frontend polling triggering `GetIngestionJob` on the server).
 - [ ] `GET /api/meetings/:id/status` returns current status.
 - [ ] Lambda skips `.metadata.json` files (no infinite loop).
 - [ ] Lambda skips meetings already in `processing` or `ready` status.
@@ -225,4 +217,3 @@ All acceptance criteria pass. Commit message: `feat: add ingestion Lambda with B
 - Section 7 (Knowledge Base with data source A)
 - Section 8 (IAM: KB service role, Lambda execution role)
 - Section 9 (Lambda deployment, event notification)
-- Section 10 (EventBridge rule, if used)

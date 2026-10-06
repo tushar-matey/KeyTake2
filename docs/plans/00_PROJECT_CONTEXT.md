@@ -1,4 +1,4 @@
-# KeyTake — Project Context
+# keytake — Project Context
 
 > **READ THIS FIRST.** Every implementer must read this file in full before starting any phase.
 > This is the single source of truth for decisions, conventions, and guardrails.
@@ -7,7 +7,7 @@
 
 ## 1. Product Overview
 
-KeyTake lets users sign in, upload meeting **audio** (the core feature) plus optional supporting documents (PDF memos, DOCX, TXT, MD), get an AI-generated summary, and chat with an agent that answers questions about their meetings with citations (file name, speaker label, timestamp). Audio is the primary input. Documents are secondary and must not complicate or delay the audio pipeline. **English only** — do not add multi-language or language-detection features.
+keytake lets users sign in, upload meeting **audio** (the core feature) plus optional supporting documents (PDF memos, DOCX, TXT, MD), get an AI-generated summary, and chat with an agent that answers questions about their meetings with citations (file name, speaker label, timestamp). Audio is the primary input. Documents are secondary and must not complicate or delay the audio pipeline. **English only** — do not add multi-language or language-detection features.
 
 ---
 
@@ -35,7 +35,7 @@ Allow only the Vercel origin (and `http://localhost:5173` in dev) plus the `Auth
 ## 3. Folder Structure and Conventions
 
 ```
-KeyTake/
+keytake/
 ├── client/                     # React + Vite frontend
 │   ├── src/
 │   │   ├── components/         # Reusable UI components (shadcn/ui wrappers, etc.)
@@ -114,7 +114,7 @@ KeyTake/
 - **No per-component CSS files.** Only `client/src/index.css` (the Tailwind entry).
 - **No `any`** unless justified with a `// eslint-disable-next-line ... — <reason>` comment.
 - **All env vars** validated with zod at startup, with clear error messages.
-- **Imports** use workspace references (e.g., `@meeting-brain/shared`).
+- **Imports** use workspace references (e.g., `@keytake/shared`).
 
 ---
 
@@ -168,18 +168,18 @@ Public SPA client with **no secret**. Flows: sign up, confirm email, sign in, si
 ### Two Buckets (Separate)
 | Bucket | Purpose | Example Name |
 |---|---|---|
-| Raw uploads | User-uploaded files + metadata sidecars | `meeting-brain-raw-uploads` |
-| Derived output | BDA output, intermediate processing | `meeting-brain-derived-output` |
+| Raw uploads | User-uploaded files + metadata sidecars | `keytake-raw-uploads` |
+| Derived output | BDA output, intermediate processing | `keytake-derived-output` |
 
 ### Key Structure
 ```
 Raw bucket:
-  users/{userId}/meetings/{meetingId}/audio.mp3
-  users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json
-  users/{userId}/meetings/{meetingId}/memo.pdf
-  users/{userId}/meetings/{meetingId}/memo.pdf.metadata.json
-  users/{userId}/meetings/{meetingId}/notes.docx
-  users/{userId}/meetings/{meetingId}/notes.docx.metadata.json
+  data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3
+  data-source-a/users/{userId}/meetings/{meetingId}/audio.mp3.metadata.json
+  data-source-a/users/{userId}/meetings/{meetingId}/memo.pdf
+  data-source-a/users/{userId}/meetings/{meetingId}/memo.pdf.metadata.json
+  data-source-b/users/{userId}/meetings/{meetingId}/notes.docx
+  data-source-b/users/{userId}/meetings/{meetingId}/notes.docx.metadata.json
 
 Derived bucket:
   bda-output/{meetingId}/...   (BDA writes here)
@@ -267,7 +267,7 @@ The system prompt must instruct the model to:
 
 ### 7.8 Deletion
 - **Meeting deletion**: remove raw files, sidecars, and BDA output from S3 → trigger a data source sync so vectors are removed → delete Mongo records.
-- **Account deletion**: same for the entire `users/{userId}/` prefix → delete the Cognito user → delete all Mongo records.
+- **Account deletion**: same for the entire `data-source-a/users/{userId}/` and `data-source-b/users/{userId}/` prefixes → delete the Cognito user → delete all Mongo records.
 
 ### 7.9 Agent IAM Permissions
 The agent's IAM permissions are limited to `bedrock:Retrieve` and `bedrock:InvokeModel`. **No S3 access**.
@@ -289,7 +289,8 @@ S3 event (raw bucket) → Lambda → writes sidecar to raw bucket (if needed)
 `uploaded` → `processing` → `ready` | `failed`
 
 ### Status Updates
-Prefer **EventBridge** ingestion-job state-change events to update status in Mongo. Fallback: one capped check (not a polling loop) from the Lambda.
+The Express server checks `bedrock:GetIngestionJob` on demand when the frontend polls for meeting status. Once status is COMPLETE, the server updates MongoDB.
+No Lambda polling loops and no EventBridge rules are used.
 
 ### Routing by Extension
 | Extension | Data Source | Parser |
@@ -307,7 +308,7 @@ These are **hard requirements**. Every phase plan must restate the rules that ap
 ### 9.1 Lambda and Event Loops
 - **Nothing** may trigger recursive Lambda loops or infinite polling.
 - The ingestion Lambda must **NEVER** write to a location that triggers its own S3 event.
-- Scope S3 event notifications **narrowly** by prefix (`users/`) and suffix (only `.mp3`, `.wav`, `.flac`, `.m4a`, `.ogg`, `.amr`, `.pdf`, `.docx`, `.txt`, `.md`). **Explicitly exclude** `.metadata.json` and the derived output bucket.
+- Scope S3 event notifications **narrowly** by prefix (`data-source-a/users/` and `data-source-b/users/`) and suffix (only `.mp3`, `.wav`, `.flac`, `.m4a`, `.ogg`, `.amr`, `.pdf`, `.docx`, `.txt`, `.md`). **Explicitly exclude** `.metadata.json` and the derived output bucket.
 - Keep raw uploads and derived output in **separate buckets**.
 - **Reserved concurrency** on every Lambda: 2–5.
 - **Dead-letter queue** (SQS) or on-failure destination on every Lambda.

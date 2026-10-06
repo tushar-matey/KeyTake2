@@ -27,7 +27,7 @@ Set up the npm workspaces monorepo with all four packages (`client`, `server`, `
 ### `shared/`
 | File | Purpose |
 |---|---|
-| `package.json` | Package `@meeting-brain/shared`, main pointing to `dist/` |
+| `package.json` | Package `@keytake/shared`, main pointing to `dist/` |
 | `tsconfig.json` | Extends base, `outDir: "dist"`, `composite: true` |
 | `src/schemas/meeting.ts` | Placeholder: `meetingStatusSchema = z.enum(["uploaded", "processing", "ready", "failed"])` |
 | `src/schemas/index.ts` | Barrel export |
@@ -167,7 +167,7 @@ export function validateEnv(): ServerEnv { ... }
 ## Common Pitfalls
 - Forgetting to set `"composite": true` in shared tsconfig breaks project references.
 - Vite proxy config must match the server port.
-- Workspace references need `"@meeting-brain/shared": "file:../shared"` or `"*"` in root.
+- Workspace references need `"@keytake/shared": "file:../shared"` or `"*"` in root.
 
 ## Suggested Model Tier
 Any capable model.

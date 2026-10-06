@@ -49,8 +49,9 @@ async function deleteMeeting(meetingId: string, userId: string): Promise<void> {
   const meeting = await Meeting.findOne({ _id: meetingId, userId });
   if (!meeting) throw new NotFoundError();
 
-  // 2. Delete raw files from S3 (users/{userId}/meetings/{meetingId}/*)
-  await deleteS3Prefix(env.S3_RAW_BUCKET, `users/${userId}/meetings/${meetingId}/`);
+  // 2. Delete raw files from S3 (data-source-a and data-source-b)
+  await deleteS3Prefix(env.S3_RAW_BUCKET, `data-source-a/users/${userId}/meetings/${meetingId}/`);
+  await deleteS3Prefix(env.S3_RAW_BUCKET, `data-source-b/users/${userId}/meetings/${meetingId}/`);
 
   // 3. Delete BDA output from derived bucket (bda-output/{meetingId}/*)
   await deleteS3Prefix(env.S3_DERIVED_BUCKET, `bda-output/${meetingId}/`);
@@ -75,8 +76,9 @@ async function deleteMeeting(meetingId: string, userId: string): Promise<void> {
 ```typescript
 // server/src/modules/settings/service.ts
 async function deleteAccount(userId: string): Promise<void> {
-  // 1. Delete all S3 content: users/{userId}/*
-  await deleteS3Prefix(env.S3_RAW_BUCKET, `users/${userId}/`);
+  // 1. Delete all S3 content for user
+  await deleteS3Prefix(env.S3_RAW_BUCKET, `data-source-a/users/${userId}/`);
+  await deleteS3Prefix(env.S3_RAW_BUCKET, `data-source-b/users/${userId}/`);
 
   // 2. Delete all BDA output for user's meetings
   const meetings = await Meeting.find({ userId });
@@ -149,7 +151,7 @@ export const authLimiter = rateLimit({
 ```yaml
 services:
   - type: web
-    name: meeting-brain-api
+    name: keytake-api
     runtime: node
     buildCommand: npm install && npm run build:shared && npm run build -w server
     startCommand: node server/dist/server.js
