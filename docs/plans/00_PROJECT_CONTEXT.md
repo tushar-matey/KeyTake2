@@ -1,4 +1,4 @@
-# Meeting Brain — Project Context
+# KeyTake — Project Context
 
 > **READ THIS FIRST.** Every implementer must read this file in full before starting any phase.
 > This is the single source of truth for decisions, conventions, and guardrails.
@@ -7,7 +7,7 @@
 
 ## 1. Product Overview
 
-Meeting Brain lets users sign in, upload meeting **audio** (the core feature) plus optional supporting documents (PDF memos, DOCX, TXT, MD), get an AI-generated summary, and chat with an agent that answers questions about their meetings with citations (file name, speaker label, timestamp). Audio is the primary input. Documents are secondary and must not complicate or delay the audio pipeline. **English only** — do not add multi-language or language-detection features.
+KeyTake lets users sign in, upload meeting **audio** (the core feature) plus optional supporting documents (PDF memos, DOCX, TXT, MD), get an AI-generated summary, and chat with an agent that answers questions about their meetings with citations (file name, speaker label, timestamp). Audio is the primary input. Documents are secondary and must not complicate or delay the audio pipeline. **English only** — do not add multi-language or language-detection features.
 
 ---
 

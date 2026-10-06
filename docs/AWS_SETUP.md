@@ -1,6 +1,6 @@
-# AWS Setup Guide — Meeting Brain
+# AWS Setup Guide — KeyTake
 
-This document is the manual guide for setting up the AWS infrastructure required for the Meeting Brain project. Because this project avoids heavy IaC tools to save time and complexity, you will configure these services via the AWS Management Console.
+This document is the manual guide for setting up the AWS infrastructure required for the KeyTake project. Because this project avoids heavy IaC tools to save time and complexity, you will configure these services via the AWS Management Console.
 
 > **IMPORTANT:** Follow this guide step-by-step. Do not skip sections, especially the Cost Protection and IAM isolation steps.
 
