@@ -16,9 +16,26 @@ export const useMeeting = (id: string) => {
     queryKey: ['meetings', id],
     queryFn: () => apiClient.get(`${API_URL}/meetings/${id}`),
     enabled: !!id,
-    refetchInterval: (data) => {
-      // Keep polling if processing, otherwise stop
-      return data?.state?.data?.status === 'uploaded' || data?.state?.data?.status === 'processing' ? 5000 : false;
+  });
+};
+
+export const useMeetingStatus = (id: string, currentStatus?: string) => {
+  const queryClient = useQueryClient();
+  
+  return useQuery({
+    queryKey: ['meetings', id, 'status'],
+    queryFn: async () => {
+      const res = await apiClient.get(`${API_URL}/meetings/${id}/status`);
+      // If status changed to ready or failed, invalidate the main meeting query
+      if (res.status === 'ready' || res.status === 'failed') {
+        queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      }
+      return res;
+    },
+    enabled: !!id && (currentStatus === 'uploaded' || currentStatus === 'processing'),
+    refetchInterval: (query) => {
+      const status = query.state?.data?.status || currentStatus;
+      return (status === 'uploaded' || status === 'processing') ? 5000 : false;
     }
   });
 };

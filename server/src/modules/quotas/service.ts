@@ -1,6 +1,6 @@
 import { Quota } from './model';
 
-const MAX_UPLOADS_PER_DAY = 5;
+const MAX_UPLOADS_PER_DAY = 100;
 
 const getTodayDateString = () => {
   return new Date().toISOString().split('T')[0];

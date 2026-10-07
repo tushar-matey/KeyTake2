@@ -6,7 +6,7 @@ dotenv.config();
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3001),
-  MONGODB_URI: z.string().url(),
+  MONGODB_URI: z.string().min(1),
   AWS_REGION: z.string().min(1),
   AWS_ACCESS_KEY_ID: z.string().min(1),
   AWS_SECRET_ACCESS_KEY: z.string().min(1),

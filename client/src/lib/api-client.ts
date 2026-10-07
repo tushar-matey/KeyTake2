@@ -17,6 +17,20 @@ export const getAuthToken = (): Promise<string | null> => {
   });
 };
 
+const handleResponse = async (response: Response) => {
+  if (!response.ok) {
+    let errorMessage = 'Network response was not ok';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch (e) {
+      // Ignore if not json
+    }
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
 export const apiClient = {
   get: async (url: string) => {
     const token = await getAuthToken();
@@ -28,8 +42,7 @@ export const apiClient = {
     }
     
     const response = await fetch(url, { headers });
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
+    return handleResponse(response);
   },
   post: async (url: string, body: any) => {
     const token = await getAuthToken();
@@ -45,8 +58,7 @@ export const apiClient = {
       headers,
       body: JSON.stringify(body)
     });
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
+    return handleResponse(response);
   },
   delete: async (url: string) => {
     const token = await getAuthToken();
@@ -61,7 +73,6 @@ export const apiClient = {
       method: 'DELETE',
       headers
     });
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
+    return handleResponse(response);
   }
 };

@@ -35,33 +35,53 @@ export const checkHashExists = async (audioHash: string) => {
 };
 
 import { BedrockAgentClient, GetIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
+import { BedrockDataAutomationRuntimeClient, GetDataAutomationStatusCommand } from '@aws-sdk/client-bedrock-data-automation-runtime';
 import { env } from '../../config/env';
 
 const bedrockClient = new BedrockAgentClient({ region: env.AWS_REGION });
+const bdaClient = new BedrockDataAutomationRuntimeClient({ region: env.AWS_REGION });
 
 export const getMeetingStatus = async (userId: string, id: string) => {
   const meeting = await Meeting.findOne({ _id: id, userId });
   if (!meeting) return null;
 
-  if (meeting.status === 'processing' && meeting.ingestionJobId && env.BEDROCK_KB_ID && env.BEDROCK_DS_A_ID) {
+  if (meeting.status === 'processing' && meeting.ingestionJobId) {
     try {
-      const response = await bedrockClient.send(new GetIngestionJobCommand({
-        knowledgeBaseId: env.BEDROCK_KB_ID,
-        dataSourceId: env.BEDROCK_DS_A_ID,
-        ingestionJobId: meeting.ingestionJobId,
-      }));
+      if (meeting.ingestionJobId.startsWith('arn:aws:bedrock:')) {
+        // It's a BDA Invocation ARN (Audio)
+        const response = await bdaClient.send(new GetDataAutomationStatusCommand({
+          invocationArn: meeting.ingestionJobId
+        }));
+        
+        const jobStatus = response.status;
+        if (jobStatus === 'Success') {
+          meeting.status = 'ready';
+          await meeting.save();
+        } else if (jobStatus === 'ClientError' || jobStatus === 'ServiceError') {
+          meeting.status = 'failed';
+          meeting.errorMessage = response.errorMessage || 'BDA processing failed';
+          await meeting.save();
+        }
+      } else if (env.BEDROCK_KB_ID && env.BEDROCK_DS_A_ID) {
+        // It's a Knowledge Base Job ID (PDFs)
+        const response = await bedrockClient.send(new GetIngestionJobCommand({
+          knowledgeBaseId: env.BEDROCK_KB_ID,
+          dataSourceId: env.BEDROCK_DS_A_ID,
+          ingestionJobId: meeting.ingestionJobId,
+        }));
 
-      const jobStatus = response.ingestionJob?.status;
-      if (jobStatus === 'COMPLETE') {
-        meeting.status = 'ready';
-        await meeting.save();
-      } else if (jobStatus === 'FAILED') {
-        meeting.status = 'failed';
-        meeting.errorMessage = response.ingestionJob?.failureReasons?.join(', ');
-        await meeting.save();
+        const jobStatus = response.ingestionJob?.status;
+        if (jobStatus === 'COMPLETE') {
+          meeting.status = 'ready';
+          await meeting.save();
+        } else if (jobStatus === 'FAILED') {
+          meeting.status = 'failed';
+          meeting.errorMessage = response.ingestionJob?.failureReasons?.join(', ');
+          await meeting.save();
+        }
       }
     } catch (err) {
-      console.error('Failed to get ingestion job status:', err);
+      console.error('Failed to get ingestion/BDA job status:', err);
     }
   }
 

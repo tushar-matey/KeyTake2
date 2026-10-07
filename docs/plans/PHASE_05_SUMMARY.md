@@ -11,6 +11,7 @@ Generate a meeting summary using Claude Sonnet via the Bedrock Converse API, usi
 - Phase 4 complete. At least one meeting with status `ready` and a BDA transcript in the derived bucket.
 - `BEDROCK_MODEL_ID` set in `server/.env` (e.g., `anthropic.claude-sonnet-4-20250514-v1:0`).
 - Bedrock model access enabled for Claude Sonnet (AWS_SETUP.md Section 2).
+- BDA Audio project created and ARN provided.
 
 ## Files to Create or Modify
 
@@ -116,7 +117,6 @@ interface TranscriptSegment {
 ```typescript
 // Fetch from derived bucket at bda-output/{meetingId}/...
 // The BDA output structure contains audio_segments with speaker labels and timestamps
-// VERIFY: exact path where BDA writes output when used as KB data source parser
 async function fetchBDATranscript(meetingId: string): Promise<BDAOutput> {
   // Read the standard output JSON from the derived bucket
   // Parse audio_segments and compose into a readable transcript
@@ -190,7 +190,7 @@ transcript: [{
 5. Check Mongo: summary and transcript fields are populated.
 
 ## Common Pitfalls
-- BDA output path may vary — VERIFY the exact S3 key where BDA stores output.
+- BDA output path may vary — VERIFY the exact S3 key where BDA stores output in `bda-output/{meetingId}/`.
 - Converse API requires `messages` format (not the old `invoke_model` format).
 - The model ID format may need to include the version suffix.
 - Forgetting `max_tokens` → Claude may use default (very large), costing more.

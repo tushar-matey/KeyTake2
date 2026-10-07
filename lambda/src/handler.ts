@@ -2,7 +2,8 @@ import { S3Event } from 'aws-lambda';
 import { config } from './config';
 import { parseS3Key } from './utils/s3';
 import { getMeeting, updateMeetingStatus } from './utils/mongo';
-import { startIngestion } from './utils/bedrock';
+import { startIngestion, startDataAutomation } from './utils/bedrock';
+import { ALLOWED_AUDIO_EXTS } from '@keytake/shared';
 
 export const handler = async (event: S3Event): Promise<void> => {
   console.log('Received S3 event:', JSON.stringify(event, null, 2));
@@ -55,18 +56,30 @@ export const handler = async (event: S3Event): Promise<void> => {
     await updateMeetingStatus(meetingId, userId, 'processing');
 
     // 6. Determine data source by extension
-    //    Audio/PDF -> Data Source A (BDA)
-    //    We only process audio/PDF now via Data Source A.
+    const isAudio = ALLOWED_AUDIO_EXTS.includes(`.${ext.toLowerCase()}` as any);
+    const isPDF = ext.toLowerCase() === 'pdf';
     
-    // 7. Start ingestion job
+    // 7. Start ingestion job or BDA depending on type
     try {
-      const jobId = await startIngestion(config.BEDROCK_KB_ID, config.BEDROCK_DS_A_ID, key);
-      console.log(`Ingestion job started for ${meetingId} with Job ID ${jobId}`);
-      if (jobId) {
-        await updateMeetingStatus(meetingId, userId, 'processing', jobId);
+      if (isAudio) {
+        const inputS3Uri = `s3://${bucket}/${key}`;
+        const invocationArn = await startDataAutomation(inputS3Uri, meetingId);
+        console.log(`BDA job started for ${meetingId} with Invocation ARN ${invocationArn}`);
+        if (invocationArn) {
+          // We store the invocation ARN instead of KB job ID
+          await updateMeetingStatus(meetingId, userId, 'processing', invocationArn);
+        }
+      } else if (isPDF) {
+        const jobId = await startIngestion(config.BEDROCK_KB_ID, config.BEDROCK_DS_A_ID, key);
+        console.log(`Ingestion job started for ${meetingId} with Job ID ${jobId}`);
+        if (jobId) {
+          await updateMeetingStatus(meetingId, userId, 'processing', jobId);
+        }
+      } else {
+        console.log(`Skipping unsupported format for data-source-a: ${ext}`);
       }
     } catch (err) {
-      console.error(`Failed to start ingestion job for ${meetingId}`, err);
+      console.error(`Failed to start processing job for ${meetingId}`, err);
       // Let it throw to the DLQ and retry mechanisms
       throw err;
     }

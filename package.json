@@ -9,7 +9,7 @@
     "shared"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
     "build": "npm run build --workspaces --if-present",
@@ -23,6 +23,7 @@
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "concurrently": "^10.0.5",
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.2.5",

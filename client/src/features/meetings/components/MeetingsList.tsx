@@ -1,7 +1,12 @@
 import React from 'react';
-import { useMeetings, useDeleteMeeting } from '../api';
+import { useMeetings, useDeleteMeeting, useMeetingStatus } from '../api';
 import { Link } from 'react-router-dom';
 import { FileAudio, Trash2 } from 'lucide-react';
+
+const MeetingStatusPoller = ({ meetingId, currentStatus }: { meetingId: string, currentStatus: string }) => {
+  useMeetingStatus(meetingId, currentStatus);
+  return null;
+};
 
 export const MeetingsList = () => {
   const { data: meetings, isLoading, error } = useMeetings();
@@ -43,6 +48,9 @@ export const MeetingsList = () => {
       <ul className="divide-y divide-gray-200">
         {meetings.map((meeting) => (
           <li key={meeting._id}>
+            { (meeting.status === 'uploaded' || meeting.status === 'processing') && (
+              <MeetingStatusPoller meetingId={meeting._id} currentStatus={meeting.status} />
+            )}
             <div className="px-4 py-4 sm:px-6 flex items-center justify-between hover:bg-gray-50">
               <div className="flex flex-col">
                 <p className="text-sm font-medium text-blue-600 truncate">{meeting.title}</p>

@@ -172,22 +172,32 @@ S3 Vectors requires a specific vector bucket and index.
 
 ---
 
-## PART F. Knowledge Base
+## PART F. Knowledge Base & Standalone BDA
 *Phase 4 (DS A), Phase 8 (DS B) | Required for local dev | 15 mins*
 
+We use a hybrid approach: PDFs use the Knowledge Base's built-in BDA parser, while Audio uses a standalone BDA project to ensure we receive the raw JSON transcript for our UI and Summary Service.
+
+### F1. Standalone Bedrock Data Automation (Audio)
+1. Go to **Bedrock** > **Data Automation** > **Projects**.
+2. Click **Create project**.
+3. Modality: Select **Audio**.
+4. Check **Audio transcript** and **Speaker labeling**.
+5. Save the project and copy its **Project ARN**.
+6. (Optional) Also note the **Profile ARN** used by the project if prompted.
+
+### F2. Knowledge Base
 1. Go to **Bedrock** > **Knowledge bases** > **Create knowledge base**.
 2. **Knowledge base details**:
    - Name: `keytake-kb`.
-   - IAM role: **Create and use a new service role** (e.g., `AmazonBedrockExecutionRoleForKnowledgeBase_keytake`).
-3. **Data source (Data Source A - Audio/PDFs)**:
-   - Name: `ds-a-audio-pdf`.
+   - IAM role: **Create and use a new service role**.
+3. **Data source (Data Source A - PDFs only)**:
+   - Name: `ds-a-pdf`.
    - Data source location: Choose S3, browse to your Raw bucket, and specify the prefix: `s3://RAW_BUCKET/data-source-a/`.
-   - Advanced parsing: Select **Bedrock Data Automation (BDA)** directly in the console. Set the Output destination to your derived bucket. Enable Speaker Diarization if prompted.
-   - Chunking strategy: **Hierarchical** or **Default**.
+   - **Advanced parsing**: Select **Amazon Bedrock Data Automation as parser**.
+   - Chunking strategy: **Default**.
 4. **Embeddings model & Vector store**:
    - Select **Titan Text Embeddings V2**.
    - Vector store: Choose **Choose a vector store you have created**. Select S3 Vectors, then select your `keytake-vector-bucket-9943` and `keytake-index`.
-   - Note: Ensure Bedrock's metadata maps to non-filterable keys if needed by S3 Vectors limits.
 5. Review and Create. Note the **Knowledge Base ID** and **Data Source A ID**.
 6. **Data Source B (Docs) [Phase 8]**:
    - Go to your newly created Knowledge Base. In the Data Sources section, click **Add**.
@@ -213,13 +223,17 @@ S3 Vectors requires a specific vector bucket and index.
      "Statement": [
        {
          "Effect": "Allow",
-         "Action": ["s3:GetObject", "s3:ListBucket"],
-         "Resource": ["arn:aws:s3:::RAW_BUCKET", "arn:aws:s3:::RAW_BUCKET/*"]
+         "Action": ["s3:GetObject", "s3:ListBucket", "s3:PutObject"],
+         "Resource": ["arn:aws:s3:::RAW_BUCKET", "arn:aws:s3:::RAW_BUCKET/*", "arn:aws:s3:::DERIVED_BUCKET/*"]
        },
        {
          "Effect": "Allow",
-         "Action": ["bedrock:StartIngestionJob", "bedrock:IngestKnowledgeBaseDocuments"],
-         "Resource": "arn:aws:bedrock:REGION:ACCOUNT_ID:knowledge-base/KB_ID"
+         "Action": [
+           "bedrock:StartIngestionJob", 
+           "bedrock:IngestKnowledgeBaseDocuments",
+           "bedrock:InvokeDataAutomationAsync"
+         ],
+         "Resource": "*"
        }
      ]
    }
@@ -258,7 +272,8 @@ Render needs an IAM user to act on its behalf.
            "bedrock:InvokeModel",
            "bedrock:Converse",
            "bedrock:GetIngestionJob",
-           "bedrock:StartIngestionJob"
+           "bedrock:StartIngestionJob",
+           "bedrock:GetDataAutomationStatus"
          ],
          "Resource": "*"
        },
@@ -287,7 +302,7 @@ Render needs an IAM user to act on its behalf.
    - Execution role: Use existing role `keytake-lambda-role`.
    - Advanced settings: **Enable VPC -> Do NOT enable** (avoid NAT gateway costs).
 3. Under **Configuration** > **Environment variables**, add:
-   - `S3_RAW_BUCKET`, `S3_DERIVED_BUCKET`, `BEDROCK_KB_ID`, `BEDROCK_DS_A_ID`, `BEDROCK_DS_B_ID`, `AWS_REGION`, `MONGODB_URI`.
+   - `S3_RAW_BUCKET`, `S3_DERIVED_BUCKET`, `BEDROCK_KB_ID`, `BEDROCK_DS_A_ID`, `BEDROCK_DS_B_ID`, `AWS_REGION`, `MONGODB_URI`, `BDA_PROJECT_ARN`.
 4. Under **Configuration** > **General configuration**: Memory `256 MB`, Timeout `60 seconds`.
 5. Under **Configuration** > **Concurrency**: Click Edit. Reserve `2` units.
    > **WARNING:** AWS accounts start with low concurrency limits and require 100 unreserved units. If saving fails with an error about unreserved concurrency, request a quota increase in Service Quotas, or set it back to "Use unreserved account concurrency" but rely heavily on CloudWatch alarms and max retries=0 to prevent runaway costs.

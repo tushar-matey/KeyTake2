@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "scripts": {
     "build": "esbuild src/handler.ts --bundle --platform=node --target=node20 --outfile=dist/index.js",
-    "package": "npm run build && cd dist && zip -r function.zip index.js",
+    "package": "npm run build && cd dist && powershell Compress-Archive -Path index.js -DestinationPath function.zip -Force",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-agent": "^3.523.0",
+    "@aws-sdk/client-bedrock-data-automation-runtime": "^3.1147.0",
     "@aws-sdk/client-s3": "^3.523.0",
+    "@keytake/shared": "*",
     "mongodb": "^6.3.0",
-    "zod": "^3.22.4",
-    "@keytake/shared": "*"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.134",

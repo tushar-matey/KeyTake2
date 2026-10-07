@@ -74,15 +74,22 @@ export const handler = async (event: S3Event): Promise<void> => {
     // 5. Update status to 'processing'
     await updateMeetingStatus(meetingId, userId, 'processing');
 
-    // 6. Determine data source by extension
-    //    Audio/PDF → Data Source A (BDA)
-    //    DOCX/TXT/MD → Data Source B (default) — Phase 8
-    const dataSourceId = getDataSourceId(ext);
+    const isAudio = ['.mp3', '.m4a', '.wav'].includes(`.${ext.toLowerCase()}`);
+    const isPDF = ext.toLowerCase() === 'pdf';
 
-    // 7. Start ingestion job
-    //    Use IngestKnowledgeBaseDocuments for single-file ingestion
-    //    (preferred over StartIngestionJob for targeted ingestion)
-    await startIngestion(config.BEDROCK_KB_ID, dataSourceId, key);
+    // 6. Start ingestion job or BDA
+    if (isAudio) {
+      const inputS3Uri = `s3://${bucket}/${key}`;
+      const invocationArn = await startDataAutomation(inputS3Uri, meetingId);
+      if (invocationArn) {
+        await updateMeetingStatus(meetingId, userId, 'processing', invocationArn);
+      }
+    } else if (isPDF) {
+      const jobId = await startIngestion(config.BEDROCK_KB_ID, config.BEDROCK_DS_A_ID, key);
+      if (jobId) {
+        await updateMeetingStatus(meetingId, userId, 'processing', jobId);
+      }
+    }
   }
 };
 ```
@@ -107,18 +114,11 @@ S3 Event Notification on raw bucket:
 
 ### Ingestion API Call
 ```typescript
-// Using @aws-sdk/client-bedrock-agent
+// Using @aws-sdk/client-bedrock-agent and @aws-sdk/client-bedrock-data-automation-runtime
 import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
+import { BedrockDataAutomationRuntimeClient, InvokeDataAutomationAsyncCommand } from '@aws-sdk/client-bedrock-data-automation-runtime';
 
-const startIngestion = async (kbId: string, dsId: string, s3Key: string) => {
-  const client = new BedrockAgentClient({ region: config.AWS_REGION });
-  // Option A: StartIngestionJob (syncs entire data source)
-  // Option B: IngestKnowledgeBaseDocuments (single file, if available — VERIFY)
-  await client.send(new StartIngestionJobCommand({
-    knowledgeBaseId: kbId,
-    dataSourceId: dsId,
-  }));
-};
+// ... (helpers for startIngestion and startDataAutomation)
 ```
 
 ### Status Update Route
@@ -127,8 +127,9 @@ const startIngestion = async (kbId: string, dsId: string, s3Key: string) => {
 | `GET` | `/api/meetings/:id/status` | Yes | `{ status, errorMessage? }` |
 
 ### Status Updates (Server-side polling)
-The Express server checks the status using `GetIngestionJob` when the frontend polls for meeting status. Once the job is `COMPLETE`, the server updates the meeting status in Mongo to `ready` or `failed`.
+The Express server checks the status using `GetDataAutomationStatus` (for Audio BDA ARNs) or `GetIngestionJob` (for PDF KB Jobs) when the frontend polls for meeting status. Once the job is `Success` or `COMPLETE`, the server updates the meeting status in Mongo to `ready` or `failed`.
 No EventBridge rules or secondary Lambdas are needed.
+
 
 ## Step-by-Step Implementation Order
 
