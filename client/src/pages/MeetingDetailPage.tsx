@@ -3,9 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { useMeeting, useMeetingSummary } from '../features/meetings/api';
 import { SummaryPanel } from '../features/meetings/components/SummaryPanel';
 import { TranscriptView } from '../features/meetings/components/TranscriptView';
+import { ChatPanel } from '../components/ChatPanel';
+import { useState } from 'react';
 
 export const MeetingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [activeTab, setActiveTab] = useState<'transcript' | 'chat'>('chat');
   const { data: meeting, isLoading: isMeetingLoading } = useMeeting(id || '');
   
   // We only enable the summary query if the meeting is ready.
@@ -76,8 +79,28 @@ export const MeetingDetailPage: React.FC = () => {
             ) : null}
           </div>
           
-          <div className="h-full">
-            <TranscriptView transcript={summaryData?.transcript || []} />
+          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="flex border-b border-gray-200 bg-gray-50">
+              <button 
+                onClick={() => setActiveTab('chat')} 
+                className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'chat' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Chat Assistant
+              </button>
+              <button 
+                onClick={() => setActiveTab('transcript')} 
+                className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'transcript' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Transcript
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden h-[600px]">
+              {activeTab === 'transcript' ? (
+                <TranscriptView transcript={summaryData?.transcript || []} />
+              ) : (
+                <ChatPanel meetingId={id || ''} />
+              )}
+            </div>
           </div>
         </div>
       )}

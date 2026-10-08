@@ -18,6 +18,7 @@ const serverEnvSchema = z.object({
   BEDROCK_KB_ID: z.string().optional(),
   BEDROCK_DS_A_ID: z.string().optional(),
   BEDROCK_DS_B_ID: z.string().optional(),
+  BEDROCK_DS_DERIVED_ID: z.string().optional(),
   BEDROCK_MODEL_ID: z.string().default('apac.amazon.nova-lite-v1:0'),
 });
 
