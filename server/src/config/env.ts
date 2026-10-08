@@ -18,7 +18,7 @@ const serverEnvSchema = z.object({
   BEDROCK_KB_ID: z.string().optional(),
   BEDROCK_DS_A_ID: z.string().optional(),
   BEDROCK_DS_B_ID: z.string().optional(),
-  BEDROCK_MODEL_ID: z.string().default('anthropic.claude-3-sonnet-20240229-v1:0'),
+  BEDROCK_MODEL_ID: z.string().default('apac.amazon.nova-lite-v1:0'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
