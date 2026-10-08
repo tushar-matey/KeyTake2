@@ -12,9 +12,65 @@ export const getMeeting = async (userId: string, id: string) => {
   return await Meeting.findOne({ _id: id, userId });
 };
 
+import { DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { ChatMessageModel } from '../chat/model';
+
+async function deleteS3Prefix(bucket: string, prefix: string) {
+  try {
+    let continuationToken: string | undefined;
+    do {
+      const listRes = await s3Client.send(new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }));
+      
+      if (listRes.Contents && listRes.Contents.length > 0) {
+        await s3Client.send(new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: {
+            Objects: listRes.Contents.map(c => ({ Key: c.Key! })),
+          }
+        }));
+      }
+      continuationToken = listRes.NextContinuationToken;
+    } while (continuationToken);
+  } catch (e) {
+    console.error(`Failed to delete S3 prefix ${prefix} from ${bucket}:`, e);
+  }
+}
+
 export const deleteMeeting = async (userId: string, id: string) => {
-  // We need to also delete S3 files. For now, just delete the Mongo document.
-  // Full deletion is handled in Phase 9.
+  // Delete from RAW bucket
+  await deleteS3Prefix(env.S3_RAW_BUCKET, `data-source-a/users/${userId}/meetings/${id}/`);
+  await deleteS3Prefix(env.S3_RAW_BUCKET, `data-source-b/users/${userId}/meetings/${id}/`);
+  
+  // Delete from DERIVED bucket
+  if (env.S3_DERIVED_BUCKET) {
+    await deleteS3Prefix(env.S3_DERIVED_BUCKET, `bda-output/${id}/`);
+  }
+  
+  // Sync the knowledge bases so the vectors are removed
+  const dataSourcesToTry = [
+    env.BEDROCK_DS_DERIVED_ID,
+    env.BEDROCK_DS_A_ID,
+    env.BEDROCK_DS_B_ID
+  ].filter(Boolean) as string[];
+
+  for (const dsId of dataSourcesToTry) {
+    try {
+      await bedrockClient.send(new StartIngestionJobCommand({
+        knowledgeBaseId: env.BEDROCK_KB_ID,
+        dataSourceId: dsId,
+      }));
+    } catch (e) {
+      console.error(`Failed to sync data source ${dsId} on deletion:`, e);
+    }
+  }
+
+  // Delete associated chat messages
+  await ChatMessageModel.deleteMany({ meetingId: id, userId });
+
   return await Meeting.findOneAndDelete({ _id: id, userId });
 };
 

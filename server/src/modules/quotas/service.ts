@@ -26,3 +26,22 @@ export const incrementUploadQuota = async (userId: string): Promise<void> => {
     { upsert: true, new: true }
   );
 };
+
+const MAX_CHAT_REQUESTS_PER_DAY = 50;
+
+export const checkChatQuota = async (userId: string): Promise<boolean> => {
+  const date = getTodayDateString();
+  const quota = await Quota.findOne({ userId, date });
+  
+  if (!quota) return true;
+  return quota.chatRequestCount < MAX_CHAT_REQUESTS_PER_DAY;
+};
+
+export const incrementChatQuota = async (userId: string): Promise<void> => {
+  const date = getTodayDateString();
+  await Quota.findOneAndUpdate(
+    { userId, date },
+    { $inc: { chatRequestCount: 1 } },
+    { upsert: true, new: true }
+  );
+};

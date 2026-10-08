@@ -1,5 +1,7 @@
 import { userPool } from './cognito';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 export const getAuthToken = (): Promise<string | null> => {
   return new Promise((resolve) => {
     const user = userPool.getCurrentUser();
@@ -41,7 +43,8 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, { headers });
+    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const response = await fetch(fullUrl, { headers });
     return handleResponse(response);
   },
   post: async (url: string, body: any) => {
@@ -53,7 +56,8 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, { 
+    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const response = await fetch(fullUrl, { 
       method: 'POST',
       headers,
       body: JSON.stringify(body)
@@ -69,7 +73,8 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, { 
+    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const response = await fetch(fullUrl, { 
       method: 'DELETE',
       headers
     });

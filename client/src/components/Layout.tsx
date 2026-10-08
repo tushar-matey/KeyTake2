@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ThemeToggle } from './ThemeToggle';
-import { LogOut, Home, List, PlusCircle } from 'lucide-react';
+import { LogOut, Home, List, PlusCircle, Settings } from 'lucide-react';
 import { Button } from './ui/button';
 import { Toaster } from './ui/toaster';
 
@@ -19,6 +19,7 @@ export function Layout() {
     { name: 'Dashboard', path: '/', icon: Home },
     { name: 'Meetings', path: '/meetings', icon: List },
     { name: 'New Meeting', path: '/meetings/new', icon: PlusCircle },
+    { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   return (

@@ -358,24 +358,84 @@ Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state
 ---
 
 ## PART K. Deployment
-*Phase 9 | Required for deploy | 10 mins*
+*Phase 9 | Required for deploy | 20 mins*
 
-### L1. Render (Server)
-1. Dashboard > New > Web Service.
-2. Connect Repo. Root dir: `.` (or empty).
-3. Build Command: `npm install && npm run build:shared && npm run build -w server`
-4. Start Command: `node server/dist/server.js`
-5. Add all ENV vars from `server/.env.example`, plus `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for the `keytake-server` IAM user.
-6. Note: Free tier sleeps after 15 mins.
+### K1. MongoDB Atlas Network Access
+1. Go to your MongoDB Atlas dashboard.
+2. On the left sidebar, click **Network Access**.
+3. Click **Add IP Address**.
+4. Since Render's IP addresses change dynamically, you must add `0.0.0.0/0` (Allow Access from Anywhere) to ensure the Render server can connect to your database.
+5. Wait for the status to turn to "Active".
 
-### L2. Vercel (Client)
-1. Import repo. Framework preset: Vite. Root dir: `client`.
-2. Build Command: `npm run build`.
-3. Add ENVs: `VITE_API_URL` (Render URL), plus Cognito vars.
+### K2. Update AWS Cognito App Client (Vercel Domain)
+If you previously configured the Hosted UI or Callback URLs in Cognito with `localhost`:
+1. Go to **AWS Cognito** > **User pools** > Select your pool (`keytake-user-pool`).
+2. Go to the **App integration** tab.
+3. Scroll down to **App client list** and click your app client (`keytake-client`).
+4. Click **Edit** in the Hosted UI section (if enabled).
+5. Add your new Vercel production URL (e.g., `https://your-vercel-app.vercel.app`) to the **Allowed callback URLs** and **Allowed sign-out URLs**.
+6. Remove the `localhost` URLs or keep them if you still want to develop locally.
 
-### L3. Update CORS
-1. Once deployed, add your Vercel URL to the S3 Raw Bucket CORS configuration.
-2. Ensure your Render server `cors` middleware allows the Vercel URL.
+### K3. Render (Server Deployment)
+1. Go to [Render Dashboard](https://dashboard.render.com/) > **New** > **Web Service**.
+2. Connect your GitHub repository.
+3. Configure the service:
+   - **Name**: `keytake-api`
+   - **Root Directory**: `.` (leave empty or dot)
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npm run build -w shared && npm run build -w server`
+   - **Start Command**: `node server/dist/server.js`
+4. **Environment Variables**: Add all the following variables:
+   - `NODE_ENV`: `production`
+   - `PORT`: `3001`
+   - `CORS_ORIGIN`: Your exact Vercel frontend URL (e.g., `https://your-vercel-app.vercel.app`) without a trailing slash.
+   - `MONGO_URI`: Your MongoDB Atlas connection string.
+   - `AWS_REGION`: e.g., `ap-south-1`
+   - `COGNITO_USER_POOL_ID`: From Section 1.
+   - `S3_RAW_BUCKET`: From Section 2.
+   - `S3_DERIVED_BUCKET`: From Section 2.
+   - `BEDROCK_KB_ID`: From Section F.
+   - `BEDROCK_DS_A_ID`: From Section F.
+   - `BEDROCK_DS_B_ID`: From Section F.
+   - `BEDROCK_DS_DERIVED_ID`: From Section G.
+   - `AWS_ACCESS_KEY_ID`: IAM Access Key for `keytake-server-user`
+   - `AWS_SECRET_ACCESS_KEY`: IAM Secret Key for `keytake-server-user`
+5. Deploy the service. Once live, copy the Render URL (e.g., `https://keytake-api.onrender.com`).
+   *Note: On Render's free tier, the server sleeps after 15 minutes of inactivity and takes ~50 seconds to wake up.*
+
+### K4. Vercel (Client Deployment)
+1. Go to [Vercel Dashboard](https://vercel.com/) > **Add New** > **Project**.
+2. Import your GitHub repository.
+3. Configure the project:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: `./` (We use a custom `vercel.json` at the root which handles building the client workspace).
+   - **Build Command**: `npm run build -w client` (Or let `vercel.json` handle it).
+   - **Output Directory**: `client/dist`
+4. **Environment Variables**: Add the following:
+   - `VITE_API_URL`: Your Render URL (e.g., `https://keytake-api.onrender.com`) - DO NOT include a trailing slash or `/api`.
+   - `VITE_COGNITO_USER_POOL_ID`: From Section 1.
+   - `VITE_COGNITO_CLIENT_ID`: From Section 1.
+5. Deploy the application. Note your live Vercel URL.
+
+### K5. Update S3 CORS Configuration
+Your S3 Raw Bucket needs to accept uploads directly from your new Vercel domain.
+1. Go to **S3** > Select your **Raw Bucket** > **Permissions** tab.
+2. Scroll down to **Cross-origin resource sharing (CORS)** and click **Edit**.
+3. Add your Vercel URL to the `AllowedOrigins` array:
+```json
+[
+    {
+        "AllowedHeaders": ["*"],
+        "AllowedMethods": ["PUT", "POST", "GET"],
+        "AllowedOrigins": [
+            "http://localhost:5173",
+            "https://your-vercel-app.vercel.app"
+        ],
+        "ExposeHeaders": ["ETag"]
+    }
+]
+```
+4. Click **Save changes**.
 
 ---
 

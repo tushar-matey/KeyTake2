@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Meeting } from '../meetings/model';
 import { createChatAgent, saveMessage, getChatHistory } from './service';
+import { checkChatQuota, incrementChatQuota } from '../quotas/service';
 
 export async function chatStream(req: Request, res: Response) {
   try {
@@ -23,6 +24,13 @@ export async function chatStream(req: Request, res: Response) {
       res.status(404).json({ error: 'Meeting not found' });
       return;
     }
+
+    const isAllowed = await checkChatQuota(userId);
+    if (!isAllowed) {
+      res.status(429).json({ error: 'Daily chat quota exceeded' });
+      return;
+    }
+    await incrementChatQuota(userId);
 
     // Set up SSE headers
     res.setHeader('Content-Type', 'text/event-stream');

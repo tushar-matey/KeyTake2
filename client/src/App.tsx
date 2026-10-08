@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MeetingsPage } from './pages/MeetingsPage';
 import { NewMeetingPage } from './pages/NewMeetingPage';
 import { MeetingDetailPage } from './pages/MeetingDetailPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 import { Layout } from './components/Layout';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -24,6 +25,7 @@ function App() {
                 <Route path="/meetings" element={<MeetingsPage />} />
                 <Route path="/meetings/new" element={<NewMeetingPage />} />
                 <Route path="/meetings/:id" element={<MeetingDetailPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

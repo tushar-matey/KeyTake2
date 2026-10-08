@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: keytake-api
+    env: node
+    buildCommand: npm install && npm run build -w shared && npm run build -w server
+    startCommand: node server/dist/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: CORS_ORIGIN
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: COGNITO_USER_POOL_ID
+        sync: false
+      - key: S3_RAW_BUCKET
+        sync: false
+      - key: S3_DERIVED_BUCKET
+        sync: false
+      - key: BEDROCK_KB_ID
+        sync: false
+      - key: BEDROCK_DS_A_ID
+        sync: false
+      - key: BEDROCK_DS_B_ID
+        sync: false
+      - key: BEDROCK_DS_DERIVED_ID
+        sync: false

@@ -6,6 +6,7 @@ import { TranscriptView } from '../features/meetings/components/TranscriptView';
 import { ChatPanel } from '../components/ChatPanel';
 import { StatusBadge } from '../features/meetings/components/StatusBadge';
 import { FilesList } from '../features/meetings/components/FilesList';
+import { DeleteMeetingDialog } from '../features/meetings/components/DeleteMeetingDialog';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Card, CardContent } from '../components/ui/card';
@@ -61,7 +62,10 @@ export const MeetingDetailPage: React.FC = () => {
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h1 className="text-3xl font-bold tracking-tight">{meeting.title}</h1>
-          <StatusBadge status={meeting.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={meeting.status} />
+            <DeleteMeetingDialog meetingId={meeting._id} />
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           Created on {new Date(meeting.createdAt).toLocaleDateString()}
