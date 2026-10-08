@@ -13,8 +13,8 @@
 | 3 | Audio Meetings Module | Done | AI | Completed 2026-10-06 |
 | 4 | Knowledge Base & Audio Ingestion | Done | AI | Completed 2026-10-06 |
 | 5 | Summary Service | Done | AI | Completed 2026-10-08 |
-| 6 | Strands Agent & Chat | Not started | — | Depends on Phase 5; needs strong-model review |
-| 7 | Frontend Polish | Not started | — | Depends on Phase 6 |
+| 6 | Strands Agent & Chat | Done | AI | Completed 2026-10-08 |
+| 7 | Frontend Polish | Done | AI | Completed 2026-10-08 |
 | 8 | Documents Support | Not started | — | Depends on Phase 4 |
 | 9 | Deletion, Hardening & Deployment | Not started | — | Depends on all prior phases |
 

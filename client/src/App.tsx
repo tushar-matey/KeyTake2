@@ -8,22 +8,29 @@ import { MeetingsPage } from './pages/MeetingsPage';
 import { NewMeetingPage } from './pages/NewMeetingPage';
 import { MeetingDetailPage } from './pages/MeetingDetailPage';
 
+import { Layout } from './components/Layout';
+import { ThemeProvider } from './components/ThemeProvider';
+
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/meetings" element={<MeetingsPage />} />
-            <Route path="/meetings/new" element={<NewMeetingPage />} />
-            <Route path="/meetings/:id" element={<MeetingDetailPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider defaultTheme="system" storageKey="keytake-ui-theme">
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/meetings" element={<MeetingsPage />} />
+                <Route path="/meetings/new" element={<NewMeetingPage />} />
+                <Route path="/meetings/:id" element={<MeetingDetailPage />} />
+              </Route>
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

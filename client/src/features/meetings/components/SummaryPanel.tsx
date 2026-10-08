@@ -5,13 +5,19 @@ interface SummaryPanelProps {
   summary: string;
 }
 
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+
 export const SummaryPanel: React.FC<SummaryPanelProps> = ({ summary }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-xl font-semibold mb-4 text-gray-900">Meeting Summary</h3>
-      <div className="prose max-w-none prose-sm sm:prose-base prose-blue">
-        <ReactMarkdown>{summary}</ReactMarkdown>
-      </div>
-    </div>
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>Meeting Summary</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-primary">
+          <ReactMarkdown>{summary}</ReactMarkdown>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

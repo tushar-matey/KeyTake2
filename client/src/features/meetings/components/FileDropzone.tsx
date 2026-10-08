@@ -37,12 +37,12 @@ export const FileDropzone: React.FC<Props> = ({ onFileSelect }) => {
     <div 
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:bg-gray-50 cursor-pointer"
+      className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:bg-muted/50 cursor-pointer transition-colors"
       onClick={() => document.getElementById('fileInput')?.click()}
     >
-      <UploadCloud className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-      <p className="text-gray-600 font-medium">Click or drag file to this area to upload</p>
-      <p className="text-sm text-gray-500 mt-2">Support for a single audio file upload. {ALLOWED_AUDIO_EXTS.join(', ')}</p>
+      <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+      <p className="text-foreground font-medium">Click or drag file to this area to upload</p>
+      <p className="text-sm text-muted-foreground mt-2">Support for a single audio file upload. {ALLOWED_AUDIO_EXTS.join(', ')}</p>
       <input 
         id="fileInput" 
         type="file" 

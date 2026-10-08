@@ -1,15 +1,35 @@
 import React, { useState } from 'react';
-
 import { FileDropzone } from './FileDropzone';
 import { useCreateMeeting } from '../api';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
+import { Card, CardContent } from '../../../components/ui/card';
+import { Loader2 } from 'lucide-react';
+import { useToast } from '../../../hooks/use-toast';
 
 const computeHash = async (file: File): Promise<string> => {
   const buffer = await file.arrayBuffer();
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const getAudioDuration = (file: File): Promise<number> => {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const audio = new Audio(objectUrl);
+    audio.addEventListener('loadedmetadata', () => {
+      resolve(audio.duration);
+      URL.revokeObjectURL(objectUrl);
+    });
+    audio.addEventListener('error', () => {
+      resolve(0);
+      URL.revokeObjectURL(objectUrl);
+    });
+  });
 };
 
 export const NewMeetingForm = () => {
@@ -20,10 +40,22 @@ export const NewMeetingForm = () => {
   const createMeetingMutation = useCreateMeeting();
   const { uploadFile, progress, isUploading, error } = useFileUpload();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !file) return;
+
+    // Check duration for files > 30 minutes
+    const durationSeconds = await getAudioDuration(file);
+    const estimatedDurationMinutes = durationSeconds / 60;
+    
+    if (estimatedDurationMinutes > 30) {
+      const estimatedCost = (estimatedDurationMinutes * 0.012).toFixed(2);
+      if (!window.confirm(`This audio file appears to be over 30 minutes long. Estimated processing cost: ~$${estimatedCost}.\nAre you sure you want to continue?`)) {
+        return;
+      }
+    }
 
     setIsProcessing(true);
     try {
@@ -36,69 +68,84 @@ export const NewMeetingForm = () => {
       // 3. Upload File
       await uploadFile(meeting._id, file, hash);
       
+      toast({
+        title: "Meeting uploaded",
+        description: "Your meeting is now processing in the background.",
+      });
+      
       // 4. Redirect
       navigate('/meetings');
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Failed to create meeting and upload file.');
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: err.message || 'Failed to create meeting and upload file.',
+      });
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto p-6 bg-white rounded-lg shadow">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Title</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          maxLength={200}
-          className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-          placeholder="E.g., Weekly Sync"
-        />
-      </div>
+    <Card className="max-w-2xl mx-auto border-none shadow-none md:border md:shadow-sm">
+      <CardContent className="pt-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="title">Meeting Title</Label>
+            <Input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              maxLength={200}
+              placeholder="E.g., Weekly Sync"
+            />
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Audio Recording</label>
-        {!file ? (
-          <FileDropzone onFileSelect={setFile} />
-        ) : (
-          <div className="flex items-center justify-between p-4 border rounded-md bg-gray-50">
-            <span className="truncate">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-            {!isUploading && (
-              <button 
-                type="button" 
-                onClick={() => setFile(null)}
-                className="text-red-500 hover:text-red-700 text-sm font-medium"
-              >
-                Remove
-              </button>
+          <div className="space-y-2">
+            <Label>Audio Recording</Label>
+            {!file ? (
+              <FileDropzone onFileSelect={setFile} />
+            ) : (
+              <div className="flex items-center justify-between p-4 border rounded-md bg-muted/50">
+                <span className="truncate text-sm font-medium">{file.name} <span className="text-muted-foreground font-normal">({(file.size / 1024 / 1024).toFixed(2)} MB)</span></span>
+                {!isUploading && (
+                  <Button 
+                    type="button" 
+                    variant="ghost"
+                    onClick={() => setFile(null)}
+                    className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 h-8 px-2"
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-      
-      {error && (
-        <div className="text-red-600 bg-red-50 p-3 rounded-md text-sm">{error}</div>
-      )}
+          
+          {error && (
+            <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm font-medium">{error}</div>
+          )}
 
-      {isUploading && (
-        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-          <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-          <p className="text-xs text-gray-500 text-center mt-1">Uploading... {progress}%</p>
-        </div>
-      )}
+          {isUploading && (
+            <div className="w-full bg-muted rounded-full h-2 mt-2 overflow-hidden">
+              <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+              <p className="text-xs text-muted-foreground text-center mt-2">Uploading... {progress}%</p>
+            </div>
+          )}
 
-      <button
-        type="submit"
-        disabled={!title || !file || isProcessing}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-      >
-        {isProcessing ? 'Processing...' : 'Create Meeting'}
-      </button>
-    </form>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!title || !file || isProcessing}
+          >
+            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isProcessing ? 'Processing...' : 'Create Meeting'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 };

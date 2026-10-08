@@ -23,8 +23,8 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+      <div className="max-w-md w-full bg-card text-card-foreground p-8 rounded-lg shadow-md border">
         <h1 className="text-2xl font-bold mb-6 text-center">keytake</h1>
         
         <div className="flex gap-4 border-b mb-6 pb-2">

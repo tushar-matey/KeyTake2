@@ -1,10 +1,15 @@
 import React from 'react';
-import { useMeetings, useDeleteMeeting, useMeetingStatus } from '../api';
+import { useMeetings, useDeleteMeeting } from '../api';
+import { useStatusPolling } from '../hooks/useStatusPolling';
 import { Link } from 'react-router-dom';
 import { FileAudio, Trash2 } from 'lucide-react';
+import { StatusBadge } from './StatusBadge';
+import { Button } from '../../../components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/card';
+import { Skeleton } from '../../../components/ui/skeleton';
 
 const MeetingStatusPoller = ({ meetingId, currentStatus }: { meetingId: string, currentStatus: string }) => {
-  useMeetingStatus(meetingId, currentStatus);
+  useStatusPolling(meetingId, currentStatus);
   return null;
 };
 
@@ -12,18 +17,35 @@ export const MeetingsList = () => {
   const { data: meetings, isLoading, error } = useMeetings();
   const deleteMutation = useDeleteMeeting();
 
-  if (isLoading) return <div className="text-center p-8">Loading meetings...</div>;
-  if (error) return <div className="text-red-500 p-8">Error loading meetings.</div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => (
+          <Card key={i}>
+            <CardHeader className="py-4">
+              <Skeleton className="h-6 w-1/3 mb-2" />
+              <Skeleton className="h-4 w-1/4" />
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+  
+  if (error) return <div className="text-destructive p-8 text-center font-medium">Error loading meetings.</div>;
+  
   if (!meetings || meetings.length === 0) {
     return (
-      <div className="text-center p-12 bg-white rounded-lg shadow border border-gray-200">
-        <FileAudio className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900">No meetings found</h3>
-        <p className="text-gray-500 mt-1 mb-4">Get started by creating a new meeting.</p>
-        <Link to="/meetings/new" className="text-blue-600 hover:text-blue-800 font-medium">
-          Create New Meeting
-        </Link>
-      </div>
+      <Card className="text-center p-12 border-dashed border-2">
+        <CardContent className="pt-6">
+          <FileAudio className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium">No meetings found</h3>
+          <p className="text-muted-foreground mt-1 mb-6">Get started by creating a new meeting.</p>
+          <Button asChild>
+            <Link to="/meetings/new">Create New Meeting</Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -33,49 +55,42 @@ export const MeetingsList = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'uploaded': return 'bg-yellow-100 text-yellow-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'ready': return 'bg-green-100 text-green-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
-    <div className="bg-white shadow overflow-hidden sm:rounded-md">
-      <ul className="divide-y divide-gray-200">
-        {meetings.map((meeting) => (
-          <li key={meeting._id}>
-            { (meeting.status === 'uploaded' || meeting.status === 'processing') && (
-              <MeetingStatusPoller meetingId={meeting._id} currentStatus={meeting.status} />
-            )}
-            <div className="px-4 py-4 sm:px-6 flex items-center justify-between hover:bg-gray-50">
-              <div className="flex flex-col">
-                <Link to={`/meetings/${meeting._id}`} className="text-sm font-medium text-blue-600 truncate hover:underline">
-                  {meeting.title}
-                </Link>
-                <p className="flex items-center text-sm text-gray-500 mt-1">
-                  {new Date(meeting.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(meeting.status)}`}>
-                  {meeting.status}
-                </span>
-                <button 
-                  onClick={() => handleDelete(meeting._id)}
-                  className="text-gray-400 hover:text-red-500"
-                  title="Delete Meeting"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </div>
+    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {meetings.map((meeting) => (
+        <Card key={meeting._id} className="hover:shadow-md transition-shadow flex flex-col">
+          { (meeting.status === 'uploaded' || meeting.status === 'processing') && (
+            <MeetingStatusPoller meetingId={meeting._id} currentStatus={meeting.status} />
+          )}
+          <CardHeader className="pb-3 flex-1">
+            <div className="flex justify-between items-start mb-2">
+              <StatusBadge status={meeting.status} />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-destructive -mr-2 -mt-2"
+                onClick={() => handleDelete(meeting._id)}
+                title="Delete Meeting"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
-          </li>
-        ))}
-      </ul>
+            <CardTitle className="text-lg font-semibold line-clamp-2">
+              <Link to={`/meetings/${meeting._id}`} className="hover:underline">
+                {meeting.title}
+              </Link>
+            </CardTitle>
+            <CardDescription className="flex items-center mt-1">
+              {new Date(meeting.createdAt).toLocaleDateString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+             <Button variant="outline" className="w-full" asChild>
+                <Link to={`/meetings/${meeting._id}`}>View Details</Link>
+             </Button>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 };

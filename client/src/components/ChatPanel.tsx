@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '../hooks/useChat';
 import ReactMarkdown from 'react-markdown';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Send, Loader2 } from 'lucide-react';
 
 export function ChatPanel({ meetingId }: { meetingId: string }) {
   const { messages, loading, error, sendMessage } = useChat(meetingId);
@@ -19,51 +22,58 @@ export function ChatPanel({ meetingId }: { meetingId: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow">
+    <div className="flex flex-col h-full bg-card rounded-lg">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
+            <p>Ask anything about this meeting.</p>
+            <p className="text-sm">I can find objectives, action items, or summarize specific discussions.</p>
+          </div>
+        )}
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
+            <div className={`max-w-[85%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
               {msg.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
               )}
             </div>
           </div>
         ))}
         {loading && messages[messages.length - 1]?.role !== 'assistant' && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 rounded-lg p-3">
-              <span className="animate-pulse">Thinking...</span>
+            <div className="bg-muted text-muted-foreground rounded-lg p-3 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Thinking...</span>
             </div>
           </div>
         )}
         {error && (
-          <div className="text-red-500 text-center text-sm">{error}</div>
+          <div className="text-destructive text-center text-sm p-2 bg-destructive/10 rounded-md">{error}</div>
         )}
         <div ref={bottomRef} />
       </div>
       
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
+      <form onSubmit={handleSubmit} className="p-3 border-t bg-card mt-auto">
         <div className="flex space-x-2">
-          <input
-            type="text"
+          <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
             placeholder="Ask a question about this meeting..."
-            className="flex-1 min-w-0 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            className="flex-1"
           />
-          <button
+          <Button
             type="submit"
             disabled={!input.trim() || loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+            size="icon"
           >
-            Send
-          </button>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <span className="sr-only">Send</span>
+          </Button>
         </div>
       </form>
     </div>

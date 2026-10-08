@@ -36,16 +36,16 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded shadow mb-8">
+      <div className="bg-card border text-card-foreground p-6 rounded-lg shadow-sm mb-8">
         <h2 className="text-xl font-bold mb-4">Auth Info</h2>
         <p><strong>Email:</strong> {user?.email}</p>
         <p><strong>User ID:</strong> {user?.userId}</p>
       </div>
 
       {profile && (
-        <div className="bg-white p-6 rounded shadow">
+        <div className="bg-card border text-card-foreground p-6 rounded-lg shadow-sm">
           <h2 className="text-xl font-bold mb-4">Server Profile Data</h2>
-          <pre className="bg-gray-100 p-4 rounded overflow-auto">
+          <pre className="bg-muted p-4 rounded overflow-auto">
             {JSON.stringify(profile, null, 2)}
           </pre>
         </div>

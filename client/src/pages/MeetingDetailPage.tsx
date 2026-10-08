@@ -4,103 +4,120 @@ import { useMeeting, useMeetingSummary } from '../features/meetings/api';
 import { SummaryPanel } from '../features/meetings/components/SummaryPanel';
 import { TranscriptView } from '../features/meetings/components/TranscriptView';
 import { ChatPanel } from '../components/ChatPanel';
-import { useState } from 'react';
+import { StatusBadge } from '../features/meetings/components/StatusBadge';
+import { Skeleton } from '../components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { ArrowLeft, Loader2, FileAudio } from 'lucide-react';
+import { useStatusPolling } from '../features/meetings/hooks/useStatusPolling';
 
 export const MeetingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<'transcript' | 'chat'>('chat');
+  
   const { data: meeting, isLoading: isMeetingLoading } = useMeeting(id || '');
   
-  // We only enable the summary query if the meeting is ready.
-  // The summary API endpoint will actually trigger the generation if it doesn't exist,
-  // but it's safe to call since our backend caches it.
+  // Use the new polling hook for this meeting
+  useStatusPolling(id || '', meeting?.status || '');
+
   const isReady = meeting?.status === 'ready';
   
   const { data: summaryData, isLoading: isSummaryLoading, isError: isSummaryError } = useMeetingSummary(id || '', isReady);
 
   if (isMeetingLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="h-6 w-1/4" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-[400px] w-full" />
+          <Skeleton className="h-[600px] w-full" />
+        </div>
       </div>
     );
   }
 
   if (!meeting) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900">Meeting not found</h2>
-        <Link to="/meetings" className="text-blue-600 hover:underline mt-4 inline-block">Back to Meetings</Link>
-      </div>
+      <Card className="text-center py-12">
+        <CardContent className="pt-6">
+          <h2 className="text-2xl font-bold mb-4">Meeting not found</h2>
+          <Button asChild variant="outline">
+            <Link to="/meetings">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Meetings
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <Link to="/meetings" className="text-sm text-blue-600 hover:underline mb-2 inline-block">&larr; Back to Meetings</Link>
-          <h1 className="text-3xl font-bold text-gray-900">{meeting.title}</h1>
-          <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
-            <span>{new Date(meeting.createdAt).toLocaleDateString()}</span>
-            <span>&bull;</span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              meeting.status === 'ready' ? 'bg-green-100 text-green-800' :
-              meeting.status === 'failed' ? 'bg-red-100 text-red-800' :
-              'bg-yellow-100 text-yellow-800'
-            }`}>
-              {meeting.status}
-            </span>
-          </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col space-y-2">
+        <Link to="/meetings" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center w-fit">
+          <ArrowLeft className="mr-1 h-4 w-4" /> Back to Meetings
+        </Link>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold tracking-tight">{meeting.title}</h1>
+          <StatusBadge status={meeting.status} />
         </div>
+        <p className="text-sm text-muted-foreground">
+          Created on {new Date(meeting.createdAt).toLocaleDateString()}
+        </p>
       </div>
 
       {!isReady ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <p className="text-yellow-800">
-            This meeting is currently {meeting.status}. Summary and transcript will be available once processing is complete.
-          </p>
-        </div>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+            {meeting.status === 'processing' ? (
+              <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+            ) : (
+              <FileAudio className="h-10 w-10 text-muted-foreground mb-4" />
+            )}
+            <h3 className="text-lg font-medium mb-2">Meeting is {meeting.status}</h3>
+            <p className="text-muted-foreground max-w-md">
+              Summary and transcript will be available once processing is complete. This page will update automatically.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-5 space-y-6">
             {isSummaryLoading ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col items-center justify-center min-h-[300px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                <p className="text-gray-500">Generating intelligent summary with Claude...</p>
-                <p className="text-xs text-gray-400 mt-2">This may take up to a minute for long meetings.</p>
-              </div>
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center min-h-[300px] text-center p-6">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+                  <p className="text-foreground font-medium">Generating intelligent summary...</p>
+                  <p className="text-sm text-muted-foreground mt-2">This may take up to a minute for long meetings.</p>
+                </CardContent>
+              </Card>
             ) : isSummaryError ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-red-800">
-                Failed to generate or load the meeting summary. Please try again later.
-              </div>
+              <Card className="border-destructive bg-destructive/10">
+                <CardContent className="p-6 text-destructive font-medium text-center">
+                  Failed to generate or load the meeting summary. Please try again later.
+                </CardContent>
+              </Card>
             ) : summaryData ? (
               <SummaryPanel summary={summaryData.summary} />
             ) : null}
           </div>
           
-          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="flex border-b border-gray-200 bg-gray-50">
-              <button 
-                onClick={() => setActiveTab('chat')} 
-                className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'chat' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Chat Assistant
-              </button>
-              <button 
-                onClick={() => setActiveTab('transcript')} 
-                className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'transcript' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Transcript
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden h-[600px]">
-              {activeTab === 'transcript' ? (
-                <TranscriptView transcript={summaryData?.transcript || []} />
-              ) : (
+          <div className="lg:col-span-7 h-full min-h-[600px] flex flex-col">
+            <Tabs defaultValue="chat" className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="chat">Chat Assistant</TabsTrigger>
+                <TabsTrigger value="transcript">Transcript</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="chat" className="flex-1 mt-4 p-0 border rounded-lg bg-card overflow-hidden shadow-sm">
                 <ChatPanel meetingId={id || ''} />
-              )}
-            </div>
+              </TabsContent>
+              
+              <TabsContent value="transcript" className="flex-1 mt-4 p-0 border rounded-lg bg-card overflow-hidden shadow-sm h-[600px]">
+                <TranscriptView transcript={summaryData?.transcript || []} />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       )}
