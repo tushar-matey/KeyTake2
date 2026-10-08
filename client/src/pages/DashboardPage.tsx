@@ -10,7 +10,7 @@ export const DashboardPage = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await apiClient.get('http://localhost:3001/api/auth/me');
+        const data = await apiClient.get('/api/auth/me');
         setProfile(data);
       } catch (err) {
         console.error('Failed to fetch profile', err);

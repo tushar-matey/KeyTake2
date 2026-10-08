@@ -1,8 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatMessage } from '@keytake/shared';
-import { apiClient, getAuthToken } from '../lib/api-client';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { apiClient, getAuthToken, API_URL } from '../lib/api-client';
 
 export function useChat(meetingId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -15,7 +13,7 @@ export function useChat(meetingId: string) {
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const response = await apiClient.get(`${API_URL}/meetings/${meetingId}/chat/history`);
+        const response = await apiClient.get(`/api/meetings/${meetingId}/chat/history`);
         setMessages(response);
       } catch (err: any) {
         setError('Failed to load chat history');
@@ -52,7 +50,8 @@ export function useChat(meetingId: string) {
     try {
       const token = await getAuthToken();
       
-      const response = await fetch(`${API_URL}/meetings/${meetingId}/chat`, {
+      const baseUrl = API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+      const response = await fetch(`${baseUrl}/api/meetings/${meetingId}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

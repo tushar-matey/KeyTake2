@@ -24,7 +24,7 @@ export function useStatusPolling(meetingId: string, currentStatus: string) {
   return useQuery({
     queryKey: ['meeting-status', meetingId],
     queryFn: async () => {
-      const res = await apiClient.get(`${API_URL}/meetings/${meetingId}/status`);
+      const res = await apiClient.get(`/api/meetings/${meetingId}/status`);
       if (res.status === 'ready' || res.status === 'failed') {
         queryClient.invalidateQueries({ queryKey: ['meetings'] });
       }

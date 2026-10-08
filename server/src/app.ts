@@ -14,7 +14,7 @@ connectDB();
 
 app.use(helmet());
 app.use(cors({
-  origin: env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (env.CORS_ORIGIN || 'http://localhost:5173').replace(/\/$/, ''),
   credentials: true,
 }));
 app.use(express.json());

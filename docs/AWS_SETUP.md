@@ -412,7 +412,7 @@ If you previously configured the Hosted UI or Callback URLs in Cognito with `loc
    - **Build Command**: `npm run build -w client` (Or let `vercel.json` handle it).
    - **Output Directory**: `client/dist`
 4. **Environment Variables**: Add the following:
-   - `VITE_API_URL`: Your Render URL (e.g., `https://keytake-api.onrender.com`) - DO NOT include a trailing slash or `/api`.
+   - `VITE_API_URL`: Your Render URL with `/api` appended (e.g., `https://keytake-api.onrender.com/api`) - DO NOT include a trailing slash.
    - `VITE_COGNITO_USER_POOL_ID`: From Section 1.
    - `VITE_COGNITO_CLIENT_ID`: From Section 1.
 5. Deploy the application. Note your live Vercel URL.

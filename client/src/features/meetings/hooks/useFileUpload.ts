@@ -15,7 +15,7 @@ export const useFileUpload = () => {
 
     try {
       // 1. Get presigned URLs
-      const urlResponse = await apiClient.post(`${API_URL}/meetings/${meetingId}/upload-url`, {
+      const urlResponse = await apiClient.post(`/api/meetings/${meetingId}/upload-url`, {
         fileName: file.name,
         contentType: file.type,
         fileSize: file.size,
@@ -63,7 +63,7 @@ export const useFileUpload = () => {
       }
 
       // 3. Complete multipart upload
-      await apiClient.post(`${API_URL}/meetings/${meetingId}/complete-upload`, {
+      await apiClient.post(`/api/meetings/${meetingId}/complete-upload`, {
         uploadId,
         parts: uploadedParts,
         fileName: file.name,

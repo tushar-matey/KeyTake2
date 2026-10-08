@@ -1,6 +1,6 @@
 import { userPool } from './cognito';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export const getAuthToken = (): Promise<string | null> => {
   return new Promise((resolve) => {
@@ -43,7 +43,9 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const path = url.startsWith('/api') ? url : `/api${url.startsWith('/') ? url : `/${url}`}`;
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${path}`;
     const response = await fetch(fullUrl, { headers });
     return handleResponse(response);
   },
@@ -56,7 +58,9 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const path = url.startsWith('/api') ? url : `/api${url.startsWith('/') ? url : `/${url}`}`;
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${path}`;
     const response = await fetch(fullUrl, { 
       method: 'POST',
       headers,
@@ -73,7 +77,9 @@ export const apiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const path = url.startsWith('/api') ? url : `/api${url.startsWith('/') ? url : `/${url}`}`;
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${path}`;
     const response = await fetch(fullUrl, { 
       method: 'DELETE',
       headers
