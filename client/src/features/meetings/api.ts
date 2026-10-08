@@ -61,3 +61,16 @@ export const useDeleteMeeting = () => {
     }
   });
 };
+
+import { SummaryResponse } from '@keytake/shared';
+
+export const useMeetingSummary = (id: string, enabled = true) => {
+  return useQuery<SummaryResponse>({
+    queryKey: ['meetings', id, 'summary'],
+    queryFn: () => apiClient.get(`${API_URL}/meetings/${id}/summary`),
+    enabled: !!id && enabled,
+    // The summary might take a long time to generate on the first request, so give it a larger timeout or just rely on fetch defaults.
+    // Also, it is cached, so staleTime can be Infinity.
+    staleTime: Infinity,
+  });
+};

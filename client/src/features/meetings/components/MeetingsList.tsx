@@ -53,7 +53,9 @@ export const MeetingsList = () => {
             )}
             <div className="px-4 py-4 sm:px-6 flex items-center justify-between hover:bg-gray-50">
               <div className="flex flex-col">
-                <p className="text-sm font-medium text-blue-600 truncate">{meeting.title}</p>
+                <Link to={`/meetings/${meeting._id}`} className="text-sm font-medium text-blue-600 truncate hover:underline">
+                  {meeting.title}
+                </Link>
                 <p className="flex items-center text-sm text-gray-500 mt-1">
                   {new Date(meeting.createdAt).toLocaleDateString()}
                 </p>

@@ -16,6 +16,8 @@ export interface IMeeting {
   audioHash?: string;
   ingestionJobId?: string;
   errorMessage?: string;
+  summary?: string;
+  transcript?: any[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +40,15 @@ const meetingSchema = new Schema<IMeeting>({
   audioHash: { type: String, index: true },
   ingestionJobId: String,
   errorMessage: String,
+  summary: { type: String },
+  transcript: [{
+    segmentIndex: Number,
+    startTimestampMs: Number,
+    endTimestampMs: Number,
+    text: String,
+    speaker: String,
+    channel: String,
+  }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage';
 
 import { MeetingsPage } from './pages/MeetingsPage';
 import { NewMeetingPage } from './pages/NewMeetingPage';
+import { MeetingDetailPage } from './pages/MeetingDetailPage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/meetings" element={<MeetingsPage />} />
             <Route path="/meetings/new" element={<NewMeetingPage />} />
+            <Route path="/meetings/:id" element={<MeetingDetailPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
