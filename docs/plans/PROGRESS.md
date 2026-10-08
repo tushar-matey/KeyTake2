@@ -12,7 +12,7 @@
 | 2 | Cognito Auth E2E | Done | AI | Completed 2026-10-06 |
 | 3 | Audio Meetings Module | Done | AI | Completed 2026-10-06 |
 | 4 | Knowledge Base & Audio Ingestion | Done | AI | Completed 2026-10-06 |
-| 5 | Summary Service | Not started | — | Depends on Phase 4 |
+| 5 | Summary Service | Done | AI | Completed 2026-10-08 |
 | 6 | Strands Agent & Chat | Not started | — | Depends on Phase 5; needs strong-model review |
 | 7 | Frontend Polish | Not started | — | Depends on Phase 6 |
 | 8 | Documents Support | Not started | — | Depends on Phase 4 |
