@@ -383,7 +383,7 @@ If you previously configured the Hosted UI or Callback URLs in Cognito with `loc
    - **Name**: `keytake-api`
    - **Root Directory**: `.` (leave empty or dot)
    - **Environment**: `Node`
-   - **Build Command**: `npm install && npm run build -w shared && npm run build -w server`
+   - **Build Command**: `npm install --include=dev && npm run build -w shared && npm run build -w server`
    - **Start Command**: `node server/dist/server.js`
 4. **Environment Variables**: Add all the following variables:
    - `NODE_ENV`: `production`
