@@ -36,15 +36,19 @@ export function createRetrieveTool(userId: string, meetingId: string) {
         },
       }));
 
-      // Format results with citations
-      const results = response.retrievalResults?.map((r: any) => ({
-        text: r.content?.text ?? '',
-        score: r.score,
-        metadata: r.metadata,
-        location: r.location,
-      })) ?? [];
+      // Format results as readable text instead of raw JSON
+      if (!response.retrievalResults || response.retrievalResults.length === 0) {
+        return "No results found.";
+      }
 
-      return JSON.stringify(results);
+      const formattedResults = response.retrievalResults.map((r: any, idx: number) => {
+        const text = r.content?.text ?? '';
+        const uri = r.location?.s3Location?.uri ?? '';
+        const fileName = uri.split('/').pop() || 'unknown_file';
+        return `--- Result ${idx + 1} ---\nSource File: ${fileName}\nContent:\n${text}\n`;
+      }).join('\n');
+
+      return formattedResults;
     },
   });
 }

@@ -11,8 +11,19 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const UPLOAD_EXPIRY = 5 * 60; // 5 minutes
 
+const getDataSourcePrefix = (fileName: string): string => {
+  const ext = '.' + fileName.split('.').pop()?.toLowerCase();
+  const dsAExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.amr', '.pdf'];
+  const dsBExtensions = ['.docx', '.txt', '.md'];
+
+  if (dsAExtensions.includes(ext)) return 'data-source-a';
+  if (dsBExtensions.includes(ext)) return 'data-source-b';
+  throw new Error(`Unsupported file extension: ${ext}`);
+};
+
 export const createMultipartUpload = async (userId: string, meetingId: string, fileName: string, contentType: string, fileSize: number) => {
-  const s3Key = `data-source-a/users/${userId}/meetings/${meetingId}/${fileName}`;
+  const dsPrefix = getDataSourcePrefix(fileName);
+  const s3Key = `${dsPrefix}/users/${userId}/meetings/${meetingId}/${fileName}`;
   
   const command = new CreateMultipartUploadCommand({
     Bucket: env.S3_RAW_BUCKET,
@@ -43,7 +54,8 @@ export const createMultipartUpload = async (userId: string, meetingId: string, f
 };
 
 export const completeUpload = async (userId: string, meetingId: string, fileName: string, uploadId: string, parts: { PartNumber: number, ETag: string }[]) => {
-  const s3Key = `data-source-a/users/${userId}/meetings/${meetingId}/${fileName}`;
+  const dsPrefix = getDataSourcePrefix(fileName);
+  const s3Key = `${dsPrefix}/users/${userId}/meetings/${meetingId}/${fileName}`;
   
   const command = new CompleteMultipartUploadCommand({
     Bucket: env.S3_RAW_BUCKET,
@@ -57,7 +69,9 @@ export const completeUpload = async (userId: string, meetingId: string, fileName
 };
 
 export const writeSidecar = async (userId: string, meetingId: string, fileName: string, type: string) => {
-  const sidecarKey = `data-source-a/users/${userId}/meetings/${meetingId}/${fileName}.metadata.json`;
+  const dsPrefix = getDataSourcePrefix(fileName);
+  const sidecarKey = `${dsPrefix}/users/${userId}/meetings/${meetingId}/${fileName}.metadata.json`;
+  
   const sidecar = {
     metadataAttributes: {
       userId,

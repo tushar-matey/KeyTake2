@@ -92,8 +92,11 @@ export function useChat(meetingId: string) {
               if (eventType === 'token') {
                 setMessages((prev) => {
                   const newMessages = [...prev];
-                  const last = newMessages[newMessages.length - 1];
-                  last.content += eventData.text;
+                  const lastIndex = newMessages.length - 1;
+                  newMessages[lastIndex] = {
+                    ...newMessages[lastIndex],
+                    content: newMessages[lastIndex].content + eventData.text
+                  };
                   return newMessages;
                 });
               } else if (eventType === 'error') {

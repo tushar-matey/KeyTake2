@@ -35,12 +35,17 @@ const getAudioDuration = (file: File): Promise<number> => {
 export const NewMeetingForm = () => {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const createMeetingMutation = useCreateMeeting();
   const { uploadFile, progress, isUploading, error } = useFileUpload();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleRemoveDoc = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,18 +64,22 @@ export const NewMeetingForm = () => {
 
     setIsProcessing(true);
     try {
-      // 1. Compute Hash
-      const hash = await computeHash(file);
-      
-      // 2. Create Meeting DB Record
+      // 1. Create Meeting DB Record
       const meeting = await createMeetingMutation.mutateAsync(title);
       
-      // 3. Upload File
-      await uploadFile(meeting._id, file, hash);
+      // 2. Upload Audio File
+      const audioHash = await computeHash(file);
+      await uploadFile(meeting._id, file, audioHash);
+      
+      // 3. Upload Document Files
+      for (const doc of documents) {
+        const docHash = await computeHash(doc);
+        await uploadFile(meeting._id, doc, docHash);
+      }
       
       toast({
         title: "Meeting uploaded",
-        description: "Your meeting is now processing in the background.",
+        description: "Your meeting and files are now processing in the background.",
       });
       
       // 4. Redirect
@@ -80,7 +89,7 @@ export const NewMeetingForm = () => {
       toast({
         variant: "destructive",
         title: "Upload Failed",
-        description: err.message || 'Failed to create meeting and upload file.',
+        description: err.message || 'Failed to create meeting and upload files.',
       });
     } finally {
       setIsProcessing(false);
@@ -107,11 +116,11 @@ export const NewMeetingForm = () => {
           <div className="space-y-2">
             <Label>Audio Recording</Label>
             {!file ? (
-              <FileDropzone onFileSelect={setFile} />
+              <FileDropzone onFileSelect={setFile} fileType="audio" />
             ) : (
               <div className="flex items-center justify-between p-4 border rounded-md bg-muted/50">
                 <span className="truncate text-sm font-medium">{file.name} <span className="text-muted-foreground font-normal">({(file.size / 1024 / 1024).toFixed(2)} MB)</span></span>
-                {!isUploading && (
+                {!isProcessing && (
                   <Button 
                     type="button" 
                     variant="ghost"
@@ -125,11 +134,35 @@ export const NewMeetingForm = () => {
             )}
           </div>
           
+          <div className="space-y-2">
+            <Label>Supporting Documents (Optional)</Label>
+            <div className="space-y-2">
+              {documents.map((doc, i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-md bg-muted/50">
+                  <span className="truncate text-sm font-medium">{doc.name} <span className="text-muted-foreground font-normal">({(doc.size / 1024 / 1024).toFixed(2)} MB)</span></span>
+                  {!isProcessing && (
+                    <Button 
+                      type="button" 
+                      variant="ghost"
+                      onClick={() => handleRemoveDoc(i)}
+                      className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 h-8 px-2"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {!isProcessing && documents.length < 5 && (
+              <FileDropzone onFileSelect={(file) => setDocuments(prev => [...prev, file])} fileType="document" />
+            )}
+          </div>
+          
           {error && (
             <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm font-medium">{error}</div>
           )}
 
-          {isUploading && (
+          {isProcessing && (
             <div className="w-full bg-muted rounded-full h-2 mt-2 overflow-hidden">
               <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
               <p className="text-xs text-muted-foreground text-center mt-2">Uploading... {progress}%</p>

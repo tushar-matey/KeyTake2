@@ -27,7 +27,8 @@ export const updateMeetingStatus = async (meetingId: string, userId: string, sta
   const db = await connectToDatabase();
   const updateDoc: any = { $set: { status, updatedAt: new Date() } };
   if (ingestionJobId) {
-    updateDoc.$set.ingestionJobId = ingestionJobId;
+    updateDoc.$set.ingestionJobId = ingestionJobId; // Keep for backwards compatibility
+    updateDoc.$addToSet = { jobIds: ingestionJobId };
   }
   await db.collection('meetings').updateOne(
     { _id: new ObjectId(meetingId), userId },

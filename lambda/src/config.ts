@@ -3,6 +3,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   BEDROCK_KB_ID: z.string().min(1),
   BEDROCK_DS_A_ID: z.string().min(1),
+  BEDROCK_DS_B_ID: z.string().min(1),
   BDA_PROJECT_ARN: z.string().min(1),
   BDA_PROFILE_ARN: z.string().min(1),
   S3_RAW_BUCKET: z.string().min(1),

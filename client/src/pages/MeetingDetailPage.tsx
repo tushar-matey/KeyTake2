@@ -5,6 +5,7 @@ import { SummaryPanel } from '../features/meetings/components/SummaryPanel';
 import { TranscriptView } from '../features/meetings/components/TranscriptView';
 import { ChatPanel } from '../components/ChatPanel';
 import { StatusBadge } from '../features/meetings/components/StatusBadge';
+import { FilesList } from '../features/meetings/components/FilesList';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Card, CardContent } from '../components/ui/card';
@@ -105,9 +106,10 @@ export const MeetingDetailPage: React.FC = () => {
           
           <div className="lg:col-span-7 h-full min-h-[600px] flex flex-col">
             <Tabs defaultValue="chat" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="chat">Chat Assistant</TabsTrigger>
                 <TabsTrigger value="transcript">Transcript</TabsTrigger>
+                <TabsTrigger value="files">Files</TabsTrigger>
               </TabsList>
               
               <TabsContent value="chat" className="flex-1 mt-4 p-0 border rounded-lg bg-card overflow-hidden shadow-sm">
@@ -116,6 +118,10 @@ export const MeetingDetailPage: React.FC = () => {
               
               <TabsContent value="transcript" className="flex-1 mt-4 p-0 border rounded-lg bg-card overflow-hidden shadow-sm h-[600px]">
                 <TranscriptView transcript={summaryData?.transcript || []} />
+              </TabsContent>
+
+              <TabsContent value="files" className="flex-1 mt-4 p-0 border rounded-lg bg-card overflow-hidden shadow-sm h-[600px]">
+                <FilesList files={meeting.files} />
               </TabsContent>
             </Tabs>
           </div>

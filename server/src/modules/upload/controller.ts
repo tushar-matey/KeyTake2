@@ -23,7 +23,7 @@ export const getUploadUrl = async (req: Request, res: Response) => {
     
     // Check hash deduplication
     const hashExists = await checkHashExists(body.hash);
-    if (hashExists) return res.status(409).json({ error: 'This audio file has already been uploaded' });
+    if (hashExists) return res.status(409).json({ error: 'This file has already been uploaded' });
     
     // Generate S3 multipart upload presigned URLs
     const result = await createMultipartUpload(userId, meetingId, body.fileName, body.contentType, body.fileSize);
@@ -45,8 +45,21 @@ export const finishUpload = async (req: Request, res: Response) => {
     // Complete multipart upload
     const s3Key = await completeUpload(userId, meetingId, body.fileName, body.uploadId, body.parts);
     
+    // Determine file type and sidecar metadata type
+    const ext = '.' + body.fileName.split('.').pop()?.toLowerCase();
+    const isPdf = ext === '.pdf';
+    const isDoc = ['.docx', '.txt', '.md'].includes(ext);
+    
+    let sidecarType = 'audio';
+    
+    if (isPdf) {
+      sidecarType = 'memo';
+    } else if (isDoc) {
+      sidecarType = 'doc';
+    }
+
     // Write sidecar
-    await writeSidecar(userId, meetingId, body.fileName, 'audio');
+    await writeSidecar(userId, meetingId, body.fileName, sidecarType);
     
     // Add file to meeting record and update hash
     const file = {
@@ -54,7 +67,7 @@ export const finishUpload = async (req: Request, res: Response) => {
       s3Key,
       contentType: body.contentType,
       sizeBytes: body.fileSize,
-      type: 'audio' as const,
+      type: sidecarType as 'audio' | 'memo' | 'doc',
     };
     await addMeetingFile(userId, meetingId, file, body.hash);
     

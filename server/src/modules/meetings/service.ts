@@ -47,88 +47,114 @@ export const getMeetingStatus = async (userId: string, id: string) => {
   const meeting = await Meeting.findOne({ _id: id, userId });
   if (!meeting) return null;
 
-  if (meeting.status === 'processing' && meeting.ingestionJobId) {
+  if (meeting.status === 'processing') {
+    let allComplete = true;
+    let anyFailed = false;
+    let newJobIds = [...(meeting.jobIds || [])];
+    
+    if (newJobIds.length === 0 && meeting.ingestionJobId) {
+      newJobIds.push(meeting.ingestionJobId);
+    }
+
+    if (newJobIds.length === 0) return meeting;
+
     try {
-      if (meeting.ingestionJobId.startsWith('arn:aws:bedrock:')) {
-        // It's a BDA Invocation ARN (Audio)
-        const response = await bdaClient.send(new GetDataAutomationStatusCommand({
-          invocationArn: meeting.ingestionJobId
-        }));
-        
-        const jobStatus = response.status;
-        if (jobStatus === 'Success') {
-          // Find the result.json file in the derived bucket
-          const prefix = `bda-output/${id}/`;
-          const listResponse = await s3Client.send(new ListObjectsV2Command({
-            Bucket: env.S3_DERIVED_BUCKET,
-            Prefix: prefix,
+      for (const jobId of [...newJobIds]) {
+        if (jobId.startsWith('arn:aws:bedrock:')) {
+          // BDA Job
+          const response = await bdaClient.send(new GetDataAutomationStatusCommand({
+            invocationArn: jobId
           }));
-
-          const resultObj = listResponse.Contents?.find(c => c.Key?.endsWith('result.json'));
-          if (resultObj && resultObj.Key) {
-            // Write the sidecar file
-            const sidecarKey = `${resultObj.Key}.metadata.json`;
-            const sidecar = {
-              metadataAttributes: {
-                userId,
-                meetingId: id,
-                type: 'transcript',
-              },
-            };
-            
-            await s3Client.send(new PutObjectCommand({
+          const jobStatus = response.status;
+          
+          if (jobStatus === 'Success') {
+            const prefix = `bda-output/${id}/`;
+            const listResponse = await s3Client.send(new ListObjectsV2Command({
               Bucket: env.S3_DERIVED_BUCKET,
-              Key: sidecarKey,
-              Body: JSON.stringify(sidecar),
-              ContentType: 'application/json',
+              Prefix: prefix,
             }));
 
-            // Start Ingestion for Derived Bucket
-            const dsJob = await bedrockClient.send(new StartIngestionJobCommand({
-              knowledgeBaseId: env.BEDROCK_KB_ID,
-              dataSourceId: env.BEDROCK_DS_DERIVED_ID,
-            }));
+            const resultObj = listResponse.Contents?.find(c => c.Key?.endsWith('result.json'));
+            if (resultObj && resultObj.Key) {
+              const sidecarKey = `${resultObj.Key}.metadata.json`;
+              const sidecar = {
+                metadataAttributes: { userId, meetingId: id, type: 'transcript' }
+              };
+              await s3Client.send(new PutObjectCommand({
+                Bucket: env.S3_DERIVED_BUCKET,
+                Key: sidecarKey,
+                Body: JSON.stringify(sidecar),
+                ContentType: 'application/json',
+              }));
 
-            // Update meeting to track the ingestion job
-            meeting.ingestionJobId = dsJob.ingestionJob?.ingestionJobId;
-            await meeting.save();
+              const dsJob = await bedrockClient.send(new StartIngestionJobCommand({
+                knowledgeBaseId: env.BEDROCK_KB_ID,
+                dataSourceId: env.BEDROCK_DS_DERIVED_ID,
+              }));
+
+              newJobIds = newJobIds.filter(j => j !== jobId);
+              if (dsJob.ingestionJob?.ingestionJobId) {
+                newJobIds.push(dsJob.ingestionJob.ingestionJobId);
+              }
+              allComplete = false; // Newly queued job means not complete
+            } else {
+              anyFailed = true;
+              meeting.errorMessage = 'BDA completed but result.json not found';
+            }
+          } else if (jobStatus === 'ClientError' || jobStatus === 'ServiceError') {
+            anyFailed = true;
+            meeting.errorMessage = response.errorMessage || 'BDA processing failed';
           } else {
-            meeting.status = 'failed';
-            meeting.errorMessage = 'BDA completed but result.json not found';
-            await meeting.save();
+            allComplete = false; // Still processing
           }
-        } else if (jobStatus === 'ClientError' || jobStatus === 'ServiceError') {
-          meeting.status = 'failed';
-          meeting.errorMessage = response.errorMessage || 'BDA processing failed';
-          await meeting.save();
-        }
-      } else if (env.BEDROCK_KB_ID) {
-        // It's a Knowledge Base Job ID
-        // Determine the data source. If it's audio, it's DS_B, otherwise DS_A.
-        const isAudio = meeting.files[0]?.originalName?.match(/\.(mp3|wav|flac|mp4|ogg|webm|amr)$/i);
-        const dataSourceId = isAudio ? env.BEDROCK_DS_DERIVED_ID : env.BEDROCK_DS_A_ID;
+        } else if (env.BEDROCK_KB_ID) {
+          // KB Job
+          const dataSourcesToTry = [
+            env.BEDROCK_DS_DERIVED_ID,
+            env.BEDROCK_DS_A_ID,
+            env.BEDROCK_DS_B_ID
+          ].filter(Boolean) as string[];
 
-        if (!dataSourceId) {
-          console.warn('Missing Data Source ID for file type. Ensure BEDROCK_DS_DERIVED_ID or BEDROCK_DS_A_ID is set.');
-          return null;
-        }
+          let found = false;
+          let jobStatus: string | undefined;
 
-        const response = await bedrockClient.send(new GetIngestionJobCommand({
-          knowledgeBaseId: env.BEDROCK_KB_ID,
-          dataSourceId: dataSourceId,
-          ingestionJobId: meeting.ingestionJobId,
-        }));
+          for (const dsId of dataSourcesToTry) {
+            try {
+              const response = await bedrockClient.send(new GetIngestionJobCommand({
+                knowledgeBaseId: env.BEDROCK_KB_ID,
+                dataSourceId: dsId,
+                ingestionJobId: jobId,
+              }));
+              jobStatus = response.ingestionJob?.status;
+              found = true;
+              break;
+            } catch (e: any) {
+              continue;
+            }
+          }
 
-        const jobStatus = response.ingestionJob?.status;
-        if (jobStatus === 'COMPLETE') {
-          meeting.status = 'ready';
-          await meeting.save();
-        } else if (jobStatus === 'FAILED') {
-          meeting.status = 'failed';
-          meeting.errorMessage = response.ingestionJob?.failureReasons?.join(', ');
-          await meeting.save();
+          if (!found) {
+            console.warn('Ingestion job not found in any data source for', jobId);
+            anyFailed = true;
+          } else {
+            if (jobStatus === 'FAILED') {
+              anyFailed = true;
+              meeting.errorMessage = 'KB Ingestion failed for a file';
+            } else if (jobStatus !== 'COMPLETE') {
+              allComplete = false;
+            }
+          }
         }
       }
+
+      meeting.jobIds = newJobIds;
+      if (anyFailed) {
+        meeting.status = 'failed';
+      } else if (allComplete) {
+        meeting.status = 'ready';
+      }
+      
+      await meeting.save();
     } catch (err) {
       console.error('Failed to get ingestion/BDA job status:', err);
     }

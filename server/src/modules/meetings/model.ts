@@ -15,6 +15,7 @@ export interface IMeeting {
   files: IMeetingFile[];
   audioHash?: string;
   ingestionJobId?: string;
+  jobIds?: string[];
   errorMessage?: string;
   summary?: string;
   transcript?: any[];
@@ -39,6 +40,7 @@ const meetingSchema = new Schema<IMeeting>({
   }],
   audioHash: { type: String, index: true },
   ingestionJobId: String,
+  jobIds: { type: [String], default: [] },
   errorMessage: String,
   summary: { type: String },
   transcript: [{

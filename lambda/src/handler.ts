@@ -5,6 +5,15 @@ import { getMeeting, updateMeetingStatus } from './utils/mongo';
 import { startIngestion, startDataAutomation } from './utils/bedrock';
 import { ALLOWED_AUDIO_EXTS } from '@keytake/shared';
 
+function getDataSourceId(ext: string): string {
+  const dsAExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.amr', '.pdf'];
+  const dsBExtensions = ['.docx', '.txt', '.md'];
+
+  if (dsAExtensions.includes(ext.toLowerCase())) return config.BEDROCK_DS_A_ID;
+  if (dsBExtensions.includes(ext.toLowerCase())) return config.BEDROCK_DS_B_ID;
+  throw new Error(`Unsupported file extension: ${ext}`);
+}
+
 export const handler = async (event: S3Event): Promise<void> => {
   console.log('Received S3 event:', JSON.stringify(event, null, 2));
 
@@ -33,20 +42,10 @@ export const handler = async (event: S3Event): Promise<void> => {
 
     const { dataSource, userId, meetingId, ext } = parsedInfo;
     
-    if (dataSource !== 'data-source-a') {
-      console.log(`Skipping unhandled prefix/dataSource: ${dataSource}`);
-      continue;
-    }
-
     // 4. IDEMPOTENCY: Check meeting status in Mongo
     const meeting = await getMeeting(meetingId, userId);
     if (!meeting) {
       console.error(`Meeting not found for ${meetingId} and ${userId}`);
-      continue;
-    }
-
-    if (meeting.status === 'processing' || meeting.status === 'ready') {
-      console.log(`Meeting ${meetingId} already processing or ready (status: ${meeting.status}). Skipping.`);
       continue;
     }
 
@@ -55,11 +54,11 @@ export const handler = async (event: S3Event): Promise<void> => {
     // 5. Update status to 'processing'
     await updateMeetingStatus(meetingId, userId, 'processing');
 
-    // 6. Determine data source by extension
+    // 5. Determine data source by extension
     const isAudio = ALLOWED_AUDIO_EXTS.includes(`.${ext.toLowerCase()}` as any);
-    const isPDF = ext.toLowerCase() === 'pdf';
+    const dsId = getDataSourceId(`.${ext}`);
     
-    // 7. Start ingestion job or BDA depending on type
+    // 6. Start ingestion job or BDA depending on type
     try {
       if (isAudio) {
         const inputS3Uri = `s3://${bucket}/${key}`;
@@ -69,19 +68,20 @@ export const handler = async (event: S3Event): Promise<void> => {
           // We store the invocation ARN instead of KB job ID
           await updateMeetingStatus(meetingId, userId, 'processing', invocationArn);
         }
-      } else if (isPDF) {
-        const jobId = await startIngestion(config.BEDROCK_KB_ID, config.BEDROCK_DS_A_ID, key);
-        console.log(`Ingestion job started for ${meetingId} with Job ID ${jobId}`);
+      } else {
+        const jobId = await startIngestion(config.BEDROCK_KB_ID, dsId, key);
+        console.log(`Ingestion job started for DS ${dsId} and meeting ${meetingId} with Job ID ${jobId}`);
         if (jobId) {
           await updateMeetingStatus(meetingId, userId, 'processing', jobId);
         }
-      } else {
-        console.log(`Skipping unsupported format for data-source-a: ${ext}`);
       }
-    } catch (err) {
-      console.error(`Failed to start processing job for ${meetingId}`, err);
-      // Let it throw to the DLQ and retry mechanisms
-      throw err;
+    } catch (err: any) {
+      if (err.name === 'ConflictException' && err.message.includes('A sync job is already running')) {
+        console.log(`Sync job already running for DS ${dsId}. Skipping.`);
+      } else {
+        console.error(`Failed to start processing job for ${meetingId}`, err);
+        throw err;
+      }
     }
   }
 };
