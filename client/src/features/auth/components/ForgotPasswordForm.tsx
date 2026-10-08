@@ -59,7 +59,7 @@ export const ForgotPasswordForm = () => {
           type="email" 
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border rounded bg-background text-foreground"
           required
         />
       </div>
@@ -80,7 +80,7 @@ export const ForgotPasswordForm = () => {
           type="text" 
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border rounded bg-background text-foreground"
           required
         />
       </div>
@@ -90,7 +90,7 @@ export const ForgotPasswordForm = () => {
           type="password" 
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border rounded bg-background text-foreground"
           required
           minLength={8}
         />

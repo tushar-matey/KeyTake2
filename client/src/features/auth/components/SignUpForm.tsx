@@ -39,7 +39,7 @@ export const SignUpForm: React.FC<Props> = ({ onSuccess }) => {
             type="text" 
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded bg-background text-foreground"
             required
           />
         </div>
@@ -49,7 +49,7 @@ export const SignUpForm: React.FC<Props> = ({ onSuccess }) => {
             type="text" 
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded bg-background text-foreground"
             required
           />
         </div>
@@ -60,7 +60,7 @@ export const SignUpForm: React.FC<Props> = ({ onSuccess }) => {
           type="email" 
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border rounded bg-background text-foreground"
           required
         />
       </div>
@@ -70,7 +70,7 @@ export const SignUpForm: React.FC<Props> = ({ onSuccess }) => {
           type="password" 
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border rounded bg-background text-foreground"
           required
           minLength={8}
         />
