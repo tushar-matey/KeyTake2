@@ -11,7 +11,7 @@ services:
         value: 3001
       - key: CORS_ORIGIN
         sync: false
-      - key: MONGO_URI
+      - key: MONGODB_URI
         sync: false
       - key: AWS_REGION
         sync: false

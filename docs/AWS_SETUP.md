@@ -389,7 +389,7 @@ If you previously configured the Hosted UI or Callback URLs in Cognito with `loc
    - `NODE_ENV`: `production`
    - `PORT`: `3001`
    - `CORS_ORIGIN`: Your exact Vercel frontend URL (e.g., `https://your-vercel-app.vercel.app`) without a trailing slash.
-   - `MONGO_URI`: Your MongoDB Atlas connection string.
+   - `MONGODB_URI`: Your MongoDB Atlas connection string.
    - `AWS_REGION`: e.g., `ap-south-1`
    - `COGNITO_USER_POOL_ID`: From Section 1.
    - `S3_RAW_BUCKET`: From Section 2.
