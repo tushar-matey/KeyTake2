@@ -91,14 +91,14 @@ A Bedrock Knowledge Base cannot be created by the root user. Do these steps, the
 *Phase 1 | Required for local dev | 10 mins*
 
 1. **Set up Budgets**: Go to **Billing and Cost Management** > **Budgets**. Click **Create budget**. Select **Zero spend budget** (or Customize for a low monthly limit like $10). Add your email address to receive alerts at 50%, 80%, 100%, and forecasted 100%.
-2. **Choose Region**: We recommend `us-east-1` or `us-west-2` as they support Bedrock Claude models, Titan Text Embeddings V2, Bedrock Data Automation (BDA), and S3 Vectors. Change your region in the top-right corner. **Stay in this region for all steps.**
+2. **Choose Region**: We recommend `us-east-1` or `us-west-2` as they support Bedrock Amazon Nova models, Titan Text Embeddings V2, Bedrock Data Automation (BDA), and S3 Vectors. Change your region in the top-right corner. **Stay in this region for all steps.**
 3. **Request Model Access**:
    - Go to **Amazon Bedrock**. In the left menu (bottom), click **Model access**.
    - Click **Modify model access**. 
-   - Request access to **Anthropic Claude 3.5 Sonnet** (or Claude 3 Sonnet depending on region) and **Amazon Titan Text Embeddings V2**.
+   - Request access to **Amazon Nova Lite** and **Amazon Titan Text Embeddings V2**.
    - Note: You may be prompted to submit a use-case form for Anthropic. Fill it out.
    - Click Next and Submit. Wait 5-10 minutes until status is "Access granted".
-4. **Test in Playground**: Go to Bedrock > Playgrounds > Chat. Select Claude 3.5 Sonnet and send a test message to verify it works.
+4. **Test in Playground**: Go to Bedrock > Playgrounds > Chat. Select Amazon Nova Lite and send a test message to verify it works.
 
 ---
 
@@ -350,7 +350,7 @@ Bedrock Knowledge Base Data Source Sync does not natively emit EventBridge state
 | Service | Free Tier | Main Cost Driver |
 |---|---|---|
 | BDA | No | Audio minutes processed |
-| Claude Sonnet | No | Tokens (Input/Output) |
+| Amazon Nova Lite | No | Tokens (Input/Output) |
 | S3 Vectors | No | Storage (GB/month) and Queries |
 | Lambda | 1M reqs/mo | Compute duration |
 | Cognito | 10K MAU | Active users |

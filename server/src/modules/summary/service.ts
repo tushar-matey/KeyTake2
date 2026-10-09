@@ -94,7 +94,7 @@ export async function generateSummary(meetingId: string, userId: string): Promis
   // 2. Fetch BDA transcript output from derived bucket
   const { text: transcriptText, segments } = await fetchBDATranscript(meetingId);
 
-  // 3. Call Claude Sonnet via Converse API
+  // 3. Call Amazon Nova Lite via Converse API
   const response = await bedrockRuntimeClient.send(new ConverseCommand({
     modelId: env.BEDROCK_MODEL_ID,
     messages: [{
